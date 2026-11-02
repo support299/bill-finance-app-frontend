@@ -1,6 +1,8 @@
 import { api, endpoint } from "./client";
 
 export interface AccountingRange {
+  /** Narrows the profit & loss to one project. */
+  projectId?: string | undefined;
   from: string;
   to: string;
 }
@@ -8,6 +10,8 @@ export interface AccountingRange {
 interface Line {
   name: string;
   value: number;
+  /** Category behind a P&L line (null = uncategorized); absent on cash-flow lines. */
+  category_id?: string | null;
 }
 interface BsLine {
   id: string;
@@ -111,5 +115,9 @@ export interface AccountingReports {
 }
 
 export const getAccountingReportsFn = endpoint(async (r: AccountingRange) =>
-  api.get<AccountingReports>("/reports/accounting/", { from: r.from, to: r.to }),
+  api.get<AccountingReports>("/reports/accounting/", {
+    from: r.from,
+    to: r.to,
+    project_id: r.projectId,
+  }),
 );

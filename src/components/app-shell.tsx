@@ -6,7 +6,9 @@ import {
   Building2,
   FileBarChart,
   LayoutDashboard,
+  FolderKanban,
   LogOut,
+  Scale,
   Menu,
   RefreshCw,
   Settings,
@@ -30,6 +32,7 @@ import { auth } from "@/api/auth";
 import { getProfileFn, listNotificationsFn, markNotificationsReadFn } from "@/api/app";
 import { relativeTime } from "@/lib/format";
 import { syncTransactionsFn } from "@/api/plaid";
+import { endSupportSession, supportSession } from "@/api/session";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -37,6 +40,8 @@ const nav = [
   { to: "/ledgers", label: "Ledgers", icon: BookOpen },
   { to: "/transactions", label: "Bank Transactions", icon: Table2 },
   { to: "/accounts", label: "Bank Accounts", icon: Building2 },
+  { to: "/reconcile", label: "Reconcile", icon: Scale },
+  { to: "/projects", label: "Projects", icon: FolderKanban },
   { to: "/reports", label: "Reports", icon: FileBarChart },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
@@ -131,8 +136,26 @@ export function AppShell({ children }: { children: ReactNode }) {
     navigate({ to: "/auth", replace: true });
   }
 
+  const support = supportSession();
+  function backToClients() {
+    queryClient.clear();
+    if (endSupportSession()) navigate({ to: "/agency", search: {} });
+    else navigate({ to: "/auth", replace: true });
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      {support && (
+        <div className="no-print flex flex-wrap items-center justify-between gap-2 bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
+          <span>
+            Viewing {support.clientName ?? "a client"} · read-only support session. Nothing here can
+            be changed.
+          </span>
+          <Button size="sm" variant="secondary" onClick={backToClients}>
+            ← Back to clients
+          </Button>
+        </div>
+      )}
       <header className="no-print sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
         <div className="flex items-center gap-3 px-4 py-3">
           <Sheet open={open} onOpenChange={setOpen}>
@@ -152,9 +175,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Sheet>
 
           <Link to="/dashboard" className="flex items-center gap-2 font-display text-lg font-bold">
-            <span className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">
-              i
-            </span>
+            <img src="/logo.png" alt="" className="size-9 object-contain" />
             <span className="hidden sm:inline">ImaxAccounting</span>
           </Link>
 
@@ -163,26 +184,33 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            <div className="hidden xl:block">
-              <ConnectBankButton />
-            </div>
+            {!support && (
+              <div className="hidden xl:block">
+                <ConnectBankButton />
+              </div>
+            )}
             <span className="hidden text-xs text-muted-foreground lg:inline">
               {syncMutation.isPending ? "Syncing…" : `Last activity ${relativeTime(lastSync)}`}
             </span>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => syncMutation.mutate()}
-              disabled={syncMutation.isPending}
-            >
-              <RefreshCw className={cn("size-4", syncMutation.isPending && "animate-spin")} />
-              Sync now
-            </Button>
+            {!support && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => syncMutation.mutate()}
+                disabled={syncMutation.isPending}
+              >
+                <RefreshCw className={cn("size-4", syncMutation.isPending && "animate-spin")} />
+                Sync now
+              </Button>
+            )}
 
             <DropdownMenu
               onOpenChange={(o) =>
-                o && unread > 0 && markRead({ data: undefined }).then(() => notifQuery.refetch())
+                o &&
+                !support &&
+                unread > 0 &&
+                markRead({ data: undefined }).then(() => notifQuery.refetch())
               }
             >
               <DropdownMenuTrigger asChild>

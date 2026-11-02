@@ -111,9 +111,7 @@ function AuthPage() {
           to="/"
           className="mb-6 flex items-center justify-center gap-2 font-display text-xl font-bold"
         >
-          <span className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">
-            i
-          </span>
+          <img src="/logo.png" alt="" className="size-12 object-contain" />
           ImaxAccounting
         </Link>
 

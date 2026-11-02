@@ -1,5 +1,27 @@
 import { useQuery } from "@tanstack/react-query";
+import { Download, FileText } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import type React from "react";
+import { useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  buildStatement,
+  changeOf,
+  downloadStatementCsv,
+  downloadStatementPdf,
+  priorRange,
+  type CompareMode,
+  type StatementKind,
+  type StatementModel,
+} from "@/lib/statement-export";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,6 +34,8 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getAccountingReportsFn, type AccountingReports as AccountingData } from "@/api/accounting";
+import { getProfileFn } from "@/api/app";
+import { listProjectsFn } from "@/api/projects";
 import { ACCOUNT_CLASS_LABELS, ACCOUNTING_STATUS_LABELS } from "@/api/ledgers";
 import { formatCurrency, formatDate } from "@/lib/format";
 
@@ -52,16 +76,65 @@ function TotalRow({
   );
 }
 
-type LineRow = { name?: string; label?: string; value?: number; balance?: number };
+type LineRow = {
+  name?: string;
+  label?: string;
+  value?: number;
+  balance?: number;
+  category_id?: string | null;
+};
 
-function LineList({ rows }: { rows: LineRow[] }) {
+/** Where a P&L line leads: Transactions filtered to that category, period and statement bucket. */
+export type Drill = { gaap: string; from: string; to: string; project?: string | undefined };
+
+function DrillLink({
+  drill,
+  categoryId,
+  label,
+  children,
+  className,
+}: {
+  drill: Drill;
+  categoryId: string | null | undefined;
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <Link
+      to="/transactions"
+      search={{
+        from: drill.from,
+        to: drill.to,
+        gaap: drill.gaap,
+        label,
+        ...(drill.project ? { project: drill.project } : {}),
+        ...(categoryId ? { category: categoryId } : { uncategorized: true }),
+      }}
+      title="View these transactions"
+      className={`underline-offset-4 hover:text-primary hover:underline ${className ?? ""}`}
+    >
+      {children}
+    </Link>
+  );
+}
+
+function LineList({ rows, drill }: { rows: LineRow[]; drill?: Drill | undefined }) {
   if (!rows.length)
     return <p className="text-sm text-muted-foreground">Nothing recorded in this period.</p>;
   return (
     <div className="space-y-1">
       {rows.map((r, i) => (
         <div key={i} className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">{r.name ?? r.label}</span>
+          <span className="text-muted-foreground">
+            {drill && r.name ? (
+              <DrillLink drill={drill} categoryId={r.category_id} label={r.name}>
+                {r.name}
+              </DrillLink>
+            ) : (
+              (r.name ?? r.label)
+            )}
+          </span>
           <span className="tabular-nums">{formatCurrency(Number(r.value ?? r.balance ?? 0))}</span>
         </div>
       ))}
@@ -207,17 +280,19 @@ function StatementSection({
   rows,
   totalLabel,
   total,
+  drill,
 }: {
   title: string;
   rows: LineRow[];
   totalLabel: string;
   total: number;
+  drill?: Drill;
 }) {
   return (
     <div className="mb-6">
       <h3 className="border-b pb-1 text-xs font-bold uppercase tracking-wider">{title}</h3>
       <div className="space-y-1 py-2">
-        <LineList rows={rows} />
+        <LineList rows={rows} drill={drill} />
       </div>
       <TotalRow label={totalLabel} value={total} />
     </div>
@@ -292,75 +367,257 @@ function AgingTable({
   );
 }
 
+function ChangeCells({ value, prior, strong }: { value: number; prior: number; strong: boolean }) {
+  const c = changeOf(value, prior);
+  const cls = `text-right tabular-nums ${strong ? "font-semibold" : ""}`;
+  return (
+    <>
+      <TableCell className={cls}>{formatCurrency(prior)}</TableCell>
+      <TableCell className={cls}>{formatCurrency(c.diff)}</TableCell>
+      <TableCell className={cls}>
+        {c.pct === null ? "—" : `${c.pct > 0 ? "+" : ""}${c.pct.toFixed(1)}%`}
+      </TableCell>
+    </>
+  );
+}
+
+function ComparisonStatement({
+  model,
+  from,
+  to,
+  project,
+}: {
+  model: StatementModel;
+  from: string;
+  to: string;
+  project?: string | undefined;
+}) {
+  return (
+    <div className="surface mx-auto max-w-4xl overflow-x-auto p-5 sm:p-8">
+      <div className="mb-6 text-center">
+        <h2 className="text-lg font-bold uppercase tracking-wide">{model.title}</h2>
+        <p className="text-sm text-muted-foreground">{model.subtitle}</p>
+        <p className="text-xs text-muted-foreground">Compared with {model.compareLabel}</p>
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead />
+            <TableHead className="text-right">Current</TableHead>
+            <TableHead className="text-right">{model.compareLabel}</TableHead>
+            <TableHead className="text-right">Change</TableHead>
+            <TableHead className="text-right">%</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {model.rows.map((r, i) =>
+            r.kind === "heading" ? (
+              <TableRow key={i} className="bg-accent hover:bg-accent">
+                <TableCell colSpan={5} className="text-xs font-bold uppercase tracking-wider">
+                  {r.label}
+                </TableCell>
+              </TableRow>
+            ) : (
+              <TableRow
+                key={i}
+                className={r.kind === "grand" ? "border-y-4 border-double border-foreground" : ""}
+              >
+                <TableCell
+                  className={r.kind === "line" ? "pl-6 text-muted-foreground" : "font-semibold"}
+                >
+                  {r.kind === "line" && r.gaap ? (
+                    <DrillLink
+                      drill={{ gaap: r.gaap, from, to, project }}
+                      categoryId={r.categoryId}
+                      label={r.label}
+                    >
+                      {r.label}
+                    </DrillLink>
+                  ) : (
+                    r.label
+                  )}
+                </TableCell>
+                <TableCell
+                  className={`text-right tabular-nums ${r.kind === "line" ? "" : "font-semibold"}`}
+                >
+                  {formatCurrency(r.value)}
+                </TableCell>
+                <ChangeCells value={r.value} prior={r.prior ?? 0} strong={r.kind !== "line"} />
+              </TableRow>
+            ),
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 export function AccountingReports({ from, to }: { from: string; to: string }) {
   const fn = getAccountingReportsFn;
+  const [projectId, setProjectId] = useState("all");
+  const projects = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => listProjectsFn({ data: undefined }),
+  });
+  const project = projectId === "all" ? undefined : projectId;
   const query = useQuery({
-    queryKey: ["accounting", from, to],
-    queryFn: () => fn({ data: { from, to } }),
+    queryKey: ["accounting", from, to, project],
+    queryFn: () => fn({ data: { from, to, projectId: project } }),
   });
   const d = query.data;
+  const profile = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => getProfileFn({ data: undefined }),
+  });
+  const businessName = profile.data?.profile?.business_name ?? "";
+  const [tab, setTab] = useState("pl");
+  const [compare, setCompare] = useState<CompareMode>("none");
+  const prior = compare === "none" ? null : priorRange(from, to, compare);
+  const priorQuery = useQuery({
+    queryKey: ["accounting", prior?.from, prior?.to, project],
+    queryFn: () => fn({ data: { from: prior!.from, to: prior!.to, projectId: project } }),
+    enabled: Boolean(prior),
+  });
+  const priorLabel = prior
+    ? compare === "year"
+      ? `Prior year (${formatDate(prior.from)} – ${formatDate(prior.to)})`
+      : `Prior period (${formatDate(prior.from)} – ${formatDate(prior.to)})`
+    : "";
+  const plComparing = tab === "pl" && Boolean(priorQuery.data);
+  const modelFor = (kind: StatementKind) =>
+    buildStatement(
+      kind,
+      d!,
+      from,
+      to,
+      kind === "pl" && priorQuery.data
+        ? { data: priorQuery.data, label: priorLabel, from: prior!.from, to: prior!.to }
+        : null,
+    );
+  const exportKind = (["pl", "bs", "cf"] as const).includes(tab as StatementKind)
+    ? (tab as StatementKind)
+    : null;
 
   if (query.isLoading) return <p className="text-sm text-muted-foreground">Building reports…</p>;
   if (!d) return <p className="text-sm text-muted-foreground">No data for this period yet.</p>;
 
   return (
-    <Tabs defaultValue="pl" className="space-y-4">
-      <TabsList className="flex-wrap">
-        <TabsTrigger value="pl">Profit &amp; loss</TabsTrigger>
-        <TabsTrigger value="bs">Balance sheet</TabsTrigger>
-        <TabsTrigger value="cf">Cash flow</TabsTrigger>
-        <TabsTrigger value="gl">General ledger</TabsTrigger>
-        <TabsTrigger value="tb">Trial balance</TabsTrigger>
-        <TabsTrigger value="ar">A/R aging</TabsTrigger>
-        <TabsTrigger value="ap">A/P aging</TabsTrigger>
-        <TabsTrigger value="detail">By account</TabsTrigger>
-      </TabsList>
+    <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <TabsList className="flex-wrap">
+          <TabsTrigger value="pl">Profit &amp; loss</TabsTrigger>
+          <TabsTrigger value="bs">Balance sheet</TabsTrigger>
+          <TabsTrigger value="cf">Cash flow</TabsTrigger>
+          <TabsTrigger value="gl">General ledger</TabsTrigger>
+          <TabsTrigger value="tb">Trial balance</TabsTrigger>
+          <TabsTrigger value="ar">A/R aging</TabsTrigger>
+          <TabsTrigger value="ap">A/P aging</TabsTrigger>
+          <TabsTrigger value="detail">By account</TabsTrigger>
+        </TabsList>
+        {exportKind && (
+          <div className="no-print flex flex-wrap items-center gap-2">
+            {tab === "pl" && (projects.data?.projects.length ?? 0) > 0 && (
+              <Select value={projectId} onValueChange={setProjectId}>
+                <SelectTrigger className="h-8 w-48">
+                  <SelectValue placeholder="All projects" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Whole business</SelectItem>
+                  {(projects.data?.projects ?? []).map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {tab === "pl" && (
+              <Select value={compare} onValueChange={(v) => setCompare(v as CompareMode)}>
+                <SelectTrigger className="h-8 w-44">
+                  <SelectValue placeholder="Compare" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No comparison</SelectItem>
+                  <SelectItem value="year">Compare: last year</SelectItem>
+                  <SelectItem value="period">Compare: previous period</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+            <Button
+              size="sm"
+              onClick={() => downloadStatementPdf(modelFor(exportKind), from, to, businessName)}
+            >
+              <FileText className="size-4" /> Download PDF
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => downloadStatementCsv(modelFor(exportKind), from, to)}
+            >
+              <Download className="size-4" /> CSV
+            </Button>
+          </div>
+        )}
+      </div>
 
       <TabsContent value="pl">
-        <Statement
-          title="Profit & Loss Statement"
-          subtitle={`For the period ${formatDate(from)} – ${formatDate(to)}`}
-        >
-          <StatementSection
-            title="Revenue"
-            rows={d.profit_and_loss.revenue}
-            totalLabel="Total Revenue"
-            total={d.profit_and_loss.total_revenue}
-          />
-          <StatementSection
-            title="Cost of Goods Sold"
-            rows={d.profit_and_loss.cogs}
-            totalLabel="Total Cost of Goods Sold"
-            total={d.profit_and_loss.total_cogs}
-          />
-          <div className="mb-5 border-t border-foreground py-2">
-            <TotalRow label="Gross Profit" value={d.profit_and_loss.gross_profit} />
-          </div>
-          <StatementSection
-            title="Operating Expenses"
-            rows={d.profit_and_loss.operating_expenses}
-            totalLabel="Total Operating Expenses"
-            total={d.profit_and_loss.total_operating_expenses}
-          />
-          <div className="mb-5 border-t border-foreground py-2">
-            <TotalRow label="Operating Income" value={d.profit_and_loss.operating_income} />
-          </div>
-          <StatementSection
-            title="Other Income"
-            rows={d.profit_and_loss.other_income}
-            totalLabel="Total Other Income"
-            total={d.profit_and_loss.total_other_income}
-          />
-          <StatementSection
-            title="Other Expenses"
-            rows={d.profit_and_loss.other_expenses}
-            totalLabel="Total Other Expenses"
-            total={d.profit_and_loss.total_other_expenses}
-          />
-          <div className="border-y-4 border-double border-foreground py-2">
-            <TotalRow label="Net Income" value={d.profit_and_loss.net_profit} />
-          </div>
-        </Statement>
+        {compare !== "none" && priorQuery.isLoading && (
+          <p className="text-sm text-muted-foreground">Loading comparison…</p>
+        )}
+        {plComparing && (
+          <ComparisonStatement model={modelFor("pl")} from={from} to={to} project={project} />
+        )}
+        {!plComparing && (
+          <Statement
+            title="Profit & Loss Statement"
+            subtitle={`For the period ${formatDate(from)} – ${formatDate(to)}`}
+          >
+            <StatementSection
+              title="Revenue"
+              rows={d.profit_and_loss.revenue}
+              drill={{ gaap: "revenue", from, to, project }}
+              totalLabel="Total Revenue"
+              total={d.profit_and_loss.total_revenue}
+            />
+            <StatementSection
+              title="Cost of Goods Sold"
+              rows={d.profit_and_loss.cogs}
+              drill={{ gaap: "cogs", from, to, project }}
+              totalLabel="Total Cost of Goods Sold"
+              total={d.profit_and_loss.total_cogs}
+            />
+            <div className="mb-5 border-t border-foreground py-2">
+              <TotalRow label="Gross Profit" value={d.profit_and_loss.gross_profit} />
+            </div>
+            <StatementSection
+              title="Operating Expenses"
+              rows={d.profit_and_loss.operating_expenses}
+              drill={{ gaap: "operating_expense", from, to, project }}
+              totalLabel="Total Operating Expenses"
+              total={d.profit_and_loss.total_operating_expenses}
+            />
+            <div className="mb-5 border-t border-foreground py-2">
+              <TotalRow label="Operating Income" value={d.profit_and_loss.operating_income} />
+            </div>
+            <StatementSection
+              title="Other Income"
+              rows={d.profit_and_loss.other_income}
+              drill={{ gaap: "other_income", from, to, project }}
+              totalLabel="Total Other Income"
+              total={d.profit_and_loss.total_other_income}
+            />
+            <StatementSection
+              title="Other Expenses"
+              rows={d.profit_and_loss.other_expenses}
+              drill={{ gaap: "other_expense", from, to, project }}
+              totalLabel="Total Other Expenses"
+              total={d.profit_and_loss.total_other_expenses}
+            />
+            <div className="border-y-4 border-double border-foreground py-2">
+              <TotalRow label="Net Income" value={d.profit_and_loss.net_profit} />
+            </div>
+          </Statement>
+        )}
       </TabsContent>
 
       <TabsContent value="bs">

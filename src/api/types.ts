@@ -26,6 +26,9 @@ export type CategoryLite = Pick<Category, "id" | "name" | "type" | "color" | "ic
 
 export interface Transaction {
   id: string;
+  project: string | null;
+  project_role: "deposit" | "equipment" | "labor" | "other" | null;
+  reconciled: boolean;
   user_category_id: string | null;
   ledger_id: string | null;
   plaid_item_id: string | null;

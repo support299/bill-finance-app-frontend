@@ -67,14 +67,14 @@ export const Route = createFileRoute("/_authenticated/reports")({
 });
 
 const PALETTE = [
-  "#1a1a1a",
-  "#525252",
-  "#737373",
-  "#404040",
-  "#8a8a8a",
-  "#2e2e2e",
-  "#a3a3a3",
-  "#6b6b6b",
+  "#f28c28",
+  "#22244e",
+  "#4a63c9",
+  "#f8c58b",
+  "#9aa0c7",
+  "#c46a0f",
+  "#7b7fa6",
+  "#2e9d5b",
 ];
 
 function ReportsPage() {
@@ -188,8 +188,8 @@ function ReportsPage() {
                 />
                 <Tooltip formatter={(v: number) => formatCurrency(v)} />
                 <Legend />
-                <Bar dataKey="income" name="Income" fill="#1a1a1a" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="expenses" name="Expenses" fill="#404040" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="income" name="Income" fill="#f28c28" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="expenses" name="Expenses" fill="#22244e" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -211,8 +211,8 @@ function ReportsPage() {
                   <Area
                     dataKey="net"
                     name="Net"
-                    stroke="#525252"
-                    fill="#525252"
+                    stroke="#22244e"
+                    fill="#22244e"
                     fillOpacity={0.18}
                   />
                 </AreaChart>
@@ -240,7 +240,7 @@ function ReportsPage() {
                   <Line
                     dataKey="cumulative"
                     name="Cumulative"
-                    stroke="#1a1a1a"
+                    stroke="#f28c28"
                     strokeWidth={2}
                     dot={false}
                   />
@@ -268,7 +268,7 @@ function ReportsPage() {
                 <XAxis type="number" fontSize={12} tickFormatter={(v) => formatCompact(v)} />
                 <YAxis type="category" dataKey="name" width={140} fontSize={12} />
                 <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                <Bar dataKey="value" fill="#1a1a1a" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="value" fill="#f28c28" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

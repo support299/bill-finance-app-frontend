@@ -111,12 +111,14 @@ function GeneralPanel() {
   });
 
   const [fullName, setFullName] = useState("");
+  const [businessName, setBusinessName] = useState("");
   useEffect(() => {
     if (profile.data?.profile?.full_name) setFullName(profile.data.profile.full_name as string);
+    setBusinessName(profile.data?.profile?.business_name ?? "");
   }, [profile.data]);
 
   const saveMutation = useMutation({
-    mutationFn: () => updateFn({ data: { fullName } }),
+    mutationFn: () => updateFn({ data: { fullName, businessName } }),
     onSuccess: () => {
       toast.success("Profile saved");
       queryClient.invalidateQueries({ queryKey: ["profile"] });
@@ -142,6 +144,17 @@ function GeneralPanel() {
         <div>
           <label className="text-xs text-muted-foreground">Full name</label>
           <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground">
+            Business name (shown on PDF reports)
+          </label>
+          <Input
+            value={businessName}
+            maxLength={120}
+            placeholder="e.g. Smith Plumbing LLC"
+            onChange={(e) => setBusinessName(e.target.value)}
+          />
         </div>
         <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
           Save profile

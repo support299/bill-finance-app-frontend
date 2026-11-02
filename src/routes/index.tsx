@@ -81,6 +81,11 @@ function Landing() {
   const [ghlError, setGhlError] = useState("");
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    // Agency menu link (https://app/?company=...): the client list lives at /agency.
+    if (params.has("company") && !params.has("id")) {
+      window.location.replace(`/agency${window.location.search}`);
+      return;
+    }
     const id = params.get("id");
     const link = params.get("link");
 

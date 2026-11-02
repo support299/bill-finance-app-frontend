@@ -6,7 +6,7 @@
 
 /*
  * ImaxAccounting design system.
- * Strict black & white monochrome palette. All colors are neutral oklch tokens (zero chroma).
+ * ImaxAccounting brand: orange (#F28C28) + dark navy (#22244E). Navy is the text/sidebar color, orange is the action color.
  */
 
 @theme inline {
@@ -68,82 +68,82 @@
 
 :root {
   --radius: 0.75rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.15 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.15 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.15 0 0);
-  --primary: oklch(0.18 0 0);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.955 0 0);
-  --secondary-foreground: oklch(0.2 0 0);
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.5 0 0);
-  --accent: oklch(0.94 0 0);
-  --accent-foreground: oklch(0.2 0 0);
-  --destructive: oklch(0.3 0 0);
-  --destructive-foreground: oklch(0.99 0 0);
-  --success: oklch(0.35 0 0);
-  --success-foreground: oklch(0.99 0 0);
-  --warning: oklch(0.45 0 0);
-  --warning-foreground: oklch(0.99 0 0);
-  --income: oklch(0.25 0 0);
-  --expense: oklch(0.62 0 0);
-  --transfer: oklch(0.45 0 0);
-  --border: oklch(0.9 0 0);
-  --input: oklch(0.9 0 0);
-  --ring: oklch(0.35 0 0);
-  --chart-1: oklch(0.2 0 0);
-  --chart-2: oklch(0.42 0 0);
-  --chart-3: oklch(0.6 0 0);
-  --chart-4: oklch(0.75 0 0);
-  --chart-5: oklch(0.87 0 0);
-  --sidebar: oklch(0.16 0 0);
-  --sidebar-foreground: oklch(0.93 0 0);
-  --sidebar-primary: oklch(0.95 0 0);
-  --sidebar-primary-foreground: oklch(0.15 0 0);
-  --sidebar-accent: oklch(0.26 0 0);
-  --sidebar-accent-foreground: oklch(0.97 0 0);
+  --background: #ffffff;
+  --foreground: #1b1d3f;
+  --card: #ffffff;
+  --card-foreground: #1b1d3f;
+  --popover: #ffffff;
+  --popover-foreground: #1b1d3f;
+  --primary: #f28c28;
+  --primary-foreground: #1b1d3f;
+  --secondary: #eceef6;
+  --secondary-foreground: #22244e;
+  --muted: #f2f3f8;
+  --muted-foreground: #5f6385;
+  --accent: #fdeedd;
+  --accent-foreground: #22244e;
+  --destructive: #d93b3b;
+  --destructive-foreground: #ffffff;
+  --success: #2e9d5b;
+  --success-foreground: #ffffff;
+  --warning: #e0a100;
+  --warning-foreground: #1b1d3f;
+  --income: #2e9d5b;
+  --expense: #22244e;
+  --transfer: #7b7fa6;
+  --border: #e2e4ef;
+  --input: #d5d8e8;
+  --ring: #f28c28;
+  --chart-1: #f28c28;
+  --chart-2: #22244e;
+  --chart-3: #4a63c9;
+  --chart-4: #f8c58b;
+  --chart-5: #9aa0c7;
+  --sidebar: #22244e;
+  --sidebar-foreground: #f1f2fa;
+  --sidebar-primary: #f28c28;
+  --sidebar-primary-foreground: #1b1d3f;
+  --sidebar-accent: #33366b;
+  --sidebar-accent-foreground: #ffffff;
   --sidebar-border: oklch(1 0 0 / 14%);
-  --sidebar-ring: oklch(0.8 0 0);
+  --sidebar-ring: #f28c28;
 }
 
 .dark {
-  --background: oklch(0.13 0 0);
-  --foreground: oklch(0.96 0 0);
-  --card: oklch(0.18 0 0);
-  --card-foreground: oklch(0.96 0 0);
-  --popover: oklch(0.18 0 0);
-  --popover-foreground: oklch(0.96 0 0);
-  --primary: oklch(0.95 0 0);
-  --primary-foreground: oklch(0.13 0 0);
-  --secondary: oklch(0.24 0 0);
-  --secondary-foreground: oklch(0.95 0 0);
-  --muted: oklch(0.24 0 0);
-  --muted-foreground: oklch(0.7 0 0);
-  --accent: oklch(0.28 0 0);
-  --accent-foreground: oklch(0.95 0 0);
-  --destructive: oklch(0.75 0 0);
-  --destructive-foreground: oklch(0.13 0 0);
-  --success: oklch(0.85 0 0);
-  --success-foreground: oklch(0.13 0 0);
-  --warning: oklch(0.7 0 0);
-  --warning-foreground: oklch(0.13 0 0);
-  --income: oklch(0.95 0 0);
-  --expense: oklch(0.55 0 0);
-  --transfer: oklch(0.72 0 0);
+  --background: #151732;
+  --foreground: #f1f2fa;
+  --card: #1d1f42;
+  --card-foreground: #f1f2fa;
+  --popover: #1d1f42;
+  --popover-foreground: #f1f2fa;
+  --primary: #f28c28;
+  --primary-foreground: #151732;
+  --secondary: #2a2d5a;
+  --secondary-foreground: #f1f2fa;
+  --muted: #2a2d5a;
+  --muted-foreground: #a7abd0;
+  --accent: #33366b;
+  --accent-foreground: #f1f2fa;
+  --destructive: #ef6a6a;
+  --destructive-foreground: #151732;
+  --success: #52c487;
+  --success-foreground: #151732;
+  --warning: #f2b83a;
+  --warning-foreground: #151732;
+  --income: #52c487;
+  --expense: #f8c58b;
+  --transfer: #9aa0c7;
   --border: oklch(1 0 0 / 14%);
   --input: oklch(1 0 0 / 18%);
-  --ring: oklch(0.75 0 0);
-  --sidebar: oklch(0.15 0 0);
-  --sidebar-foreground: oklch(0.93 0 0);
-  --sidebar-primary: oklch(0.95 0 0);
-  --sidebar-primary-foreground: oklch(0.13 0 0);
-  --sidebar-accent: oklch(0.24 0 0);
-  --sidebar-accent-foreground: oklch(0.97 0 0);
+  --ring: #f28c28;
+  --sidebar: #191b3a;
+  --sidebar-foreground: #f1f2fa;
+  --sidebar-primary: #f28c28;
+  --sidebar-primary-foreground: #151732;
+  --sidebar-accent: #2a2d5a;
+  --sidebar-accent-foreground: #ffffff;
   --sidebar-border: oklch(1 0 0 / 14%);
-  --sidebar-ring: oklch(0.75 0 0);
+  --sidebar-ring: #f28c28;
 }
 
 @layer base {
@@ -176,8 +176,8 @@
 
 @utility hero-gradient {
   background-image:
-    radial-gradient(110% 90% at 12% 0%, oklch(0.2 0 0 / 0.1) 0%, transparent 60%),
-    radial-gradient(90% 80% at 95% 10%, oklch(0.5 0 0 / 0.12) 0%, transparent 55%);
+    radial-gradient(110% 90% at 12% 0%, rgb(34 36 78 / 0.12) 0%, transparent 60%),
+    radial-gradient(90% 80% at 95% 10%, rgb(242 140 40 / 0.16) 0%, transparent 55%);
 }
 
 @media print {

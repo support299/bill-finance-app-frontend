@@ -1,5 +1,5 @@
 import { GAAP_TYPES, GAAP_TYPE_LABELS, rowGaapType, type GaapType } from "@/api/gaap";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -24,6 +24,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import type { EndpointInput } from "@/api/client";
 import type { Transaction } from "@/api/types";
 import { createRuleFn, updateTransactionFn } from "@/api/transactions";
+import { listProjectsFn, PROJECT_ROLE_LABELS, PROJECT_ROLES } from "@/api/projects";
 
 interface Category {
   id: string;
@@ -44,6 +45,10 @@ export function TransactionDrawer({
   const update = updateTransactionFn;
   const createRule = createRuleFn;
   const [pendingCategory, setPendingCategory] = useState<Category | null>(null);
+  const projects = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => listProjectsFn({ data: undefined }),
+  });
 
   const updateMutation = useMutation({
     mutationFn: (input: EndpointInput<typeof updateTransactionFn>) => update({ data: input }),
@@ -166,6 +171,52 @@ export function TransactionDrawer({
               </div>
             </div>
           )}
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Project</p>
+            <div className="flex flex-wrap gap-2">
+              <Select
+                value={transaction.project ?? "none"}
+                onValueChange={(v) =>
+                  updateMutation.mutate({ id: transaction.id, projectId: v === "none" ? null : v })
+                }
+              >
+                <SelectTrigger className="w-52">
+                  <SelectValue placeholder="No project" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No project</SelectItem>
+                  {(projects.data?.projects ?? []).map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {transaction.project && (
+                <Select
+                  value={transaction.project_role ?? "other"}
+                  onValueChange={(v) =>
+                    updateMutation.mutate({
+                      id: transaction.id,
+                      projectRole: v as (typeof PROJECT_ROLES)[number],
+                    })
+                  }
+                >
+                  <SelectTrigger className="w-44">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROJECT_ROLES.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {PROJECT_ROLE_LABELS[r]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </div>
 
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline">{GAAP_TYPE_LABELS[rowGaapType(transaction)]}</Badge>

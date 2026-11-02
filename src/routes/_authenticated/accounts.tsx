@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { AlertTriangle, CheckCircle2, Landmark, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -24,6 +24,7 @@ import {
   syncTransactionsFn,
 } from "@/api/plaid";
 import type { PlaidItem } from "@/api/types";
+import { listTransactionsFn } from "@/api/transactions";
 
 export const Route = createFileRoute("/_authenticated/accounts")({
   head: () => ({
@@ -96,6 +97,13 @@ function AccountsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Imported transactions whose bank connection was removed without deleting the data.
+  const leftovers = useQuery({
+    queryKey: ["transactions", "unlinked-count"],
+    queryFn: () => listTransactionsFn({ data: { unlinked: true, pageSize: 1 } }),
+  });
+  const leftoverCount = leftovers.data?.total ?? 0;
+
   const items = query.data?.items ?? [];
   const accounts = query.data?.accounts ?? [];
 
@@ -110,6 +118,20 @@ function AccountsPage() {
         </div>
         <ConnectBankButton />
       </div>
+
+      {leftoverCount > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/40 bg-accent px-4 py-3 text-sm">
+          <span>
+            <strong>{leftoverCount}</strong> imported transactions belong to a bank that is no
+            longer connected.
+          </span>
+          <Button asChild size="sm">
+            <Link to="/transactions" search={{ unlinked: true, label: "Disconnected banks" }}>
+              Review &amp; delete
+            </Link>
+          </Button>
+        </div>
+      )}
 
       {items.length === 0 && !query.isLoading && (
         <div className="surface p-10 text-center">

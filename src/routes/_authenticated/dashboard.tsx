@@ -59,14 +59,14 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 });
 
 const CHART_COLORS = [
-  "#1a1a1a",
-  "#333333",
-  "#4d4d4d",
-  "#666666",
-  "#808080",
-  "#999999",
-  "#b3b3b3",
-  "#cccccc",
+  "#f28c28",
+  "#22244e",
+  "#4a63c9",
+  "#f8c58b",
+  "#9aa0c7",
+  "#c46a0f",
+  "#7b7fa6",
+  "#2e9d5b",
 ];
 
 function Dashboard() {
@@ -253,8 +253,8 @@ function Dashboard() {
                   />
                   <Tooltip formatter={(v: number) => formatCurrency(v)} />
                   <Legend />
-                  <Bar dataKey="income" name="Income" fill="#1a1a1a" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="expenses" name="Expenses" fill="#595959" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="income" name="Income" fill="#f28c28" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="expenses" name="Expenses" fill="#22244e" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -265,8 +265,8 @@ function Dashboard() {
                 <AreaChart data={series}>
                   <defs>
                     <linearGradient id="netGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#404040" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#404040" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#f28c28" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#f28c28" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
@@ -282,7 +282,7 @@ function Dashboard() {
                     type="monotone"
                     dataKey="net"
                     name="Net"
-                    stroke="#404040"
+                    stroke="#22244e"
                     fill="url(#netGradient)"
                     strokeWidth={2}
                   />
@@ -326,7 +326,7 @@ function Dashboard() {
                   <XAxis type="number" fontSize={12} tickFormatter={(v) => formatCompact(v)} />
                   <YAxis type="category" dataKey="name" fontSize={12} width={120} />
                   <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                  <Bar dataKey="value" name="Income" fill="#1a1a1a" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="value" name="Income" fill="#f28c28" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

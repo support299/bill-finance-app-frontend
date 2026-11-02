@@ -59,14 +59,18 @@ interface Profile {
   id: string;
   email: string;
   full_name: string;
+  business_name: string;
 }
 
 export const getProfileFn = endpoint(async (_: void) => ({
   profile: await api.get<Profile>("/profile/"),
 }));
 
-export const updateProfileFn = endpoint(async (d: { fullName: string }) => {
-  await api.patch("/profile/", { full_name: d.fullName });
+export const updateProfileFn = endpoint(async (d: { fullName: string; businessName?: string }) => {
+  await api.patch("/profile/", {
+    full_name: d.fullName,
+    ...(d.businessName !== undefined ? { business_name: d.businessName } : {}),
+  });
   return { ok: true };
 });
 
