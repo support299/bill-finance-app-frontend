@@ -11,14 +11,35 @@ export interface AgencyClient {
   note: string | null;
 }
 
+export type ClientStatus = "all" | "opened" | "not_opened";
+
 export interface AgencyClients {
   company_id: string;
   clients: AgencyClient[];
+  count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  /** Tab badges: they follow the search, not the selected tab. */
+  counts: Record<ClientStatus, number>;
   recent_activity: { at: string; action: string; location_id: string | null; who: string | null }[];
 }
 
-export const listAgencyClientsFn = endpoint(async (_: void) =>
-  api.get<AgencyClients>("/agency/clients/"),
+export interface AgencyClientsQuery {
+  q?: string;
+  status?: ClientStatus;
+  page?: number;
+  pageSize?: number;
+}
+
+/** Search, filter and pagination all run on the server, so they cover every client of the agency. */
+export const listAgencyClientsFn = endpoint(async (d: AgencyClientsQuery | undefined) =>
+  api.get<AgencyClients>("/agency/clients/", {
+    q: d?.q || undefined,
+    status: d?.status && d.status !== "all" ? d.status : undefined,
+    page: d?.page,
+    page_size: d?.pageSize,
+  }),
 );
 
 export const openAgencyClientFn = endpoint(async (d: { locationId: string }) =>

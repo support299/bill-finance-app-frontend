@@ -1,10 +1,18 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Eye, ShieldCheck } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, Search, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -13,7 +21,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { listAgencyClientsFn, openAgencyClientFn, openAgencySession } from "@/api/agency";
+import {
+  listAgencyClientsFn,
+  openAgencyClientFn,
+  openAgencySession,
+  type ClientStatus,
+} from "@/api/agency";
 import { ApiError } from "@/api/client";
 import { getTokens, setTokens, startSupportSession, supportSession } from "@/api/session";
 import { relativeTime } from "@/lib/format";
@@ -60,7 +73,7 @@ function AgencyPage() {
   useEffect(() => {
     // Returning from a client ("Back to clients"): the agency session is already restored.
     if (getTokens() && !supportSession()) {
-      listAgencyClientsFn({ data: undefined })
+      listAgencyClientsFn({ data: { pageSize: 1 } })
         .then(() => setPhase("ready"))
         .catch(() => void signIn());
     } else {
@@ -87,11 +100,37 @@ function AgencyPage() {
 function Clients({ onOpened }: { onOpened: () => void }) {
   const queryClient = useQueryClient();
   const [opening, setOpening] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [debounced, setDebounced] = useState("");
+  const [status, setStatus] = useState<ClientStatus>("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
+  // Wait for a pause in typing before asking the server; any change to the search or filters restarts at page 1.
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      setDebounced(search.trim());
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(t);
+  }, [search]);
+
   const query = useQuery({
-    queryKey: ["agency-clients"],
-    queryFn: () => listAgencyClientsFn({ data: undefined }),
+    queryKey: ["agency-clients", debounced, status, page, pageSize],
+    queryFn: () => listAgencyClientsFn({ data: { q: debounced, status, page, pageSize } }),
+    placeholderData: keepPreviousData, // keep the old rows on screen while the next page loads
   });
   const clients = query.data?.clients ?? [];
+  const counts = query.data?.counts;
+  const total = query.data?.count ?? 0;
+  const totalPages = query.data?.total_pages ?? 1;
+  const from = total === 0 ? 0 : ((query.data?.page ?? 1) - 1) * pageSize + 1;
+  const to = Math.min(from + clients.length - 1, total);
+  const TABS: { value: ClientStatus; label: string }[] = [
+    { value: "all", label: "All" },
+    { value: "opened", label: "Opened the app" },
+    { value: "not_opened", label: "Not opened yet" },
+  ];
 
   async function open(locationId: string) {
     setOpening(locationId);
@@ -117,6 +156,34 @@ function Clients({ onOpened }: { onOpened: () => void }) {
           Every sub-account that installed ImaxAccounting. Opening one is read-only and is recorded.
         </p>
       </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search all clients by name, email or id…"
+            className="pl-9"
+            aria-label="Search clients"
+          />
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {TABS.map((t) => (
+            <Button
+              key={t.value}
+              size="sm"
+              variant={status === t.value ? "default" : "outline"}
+              onClick={() => {
+                setStatus(t.value);
+                setPage(1);
+              }}
+            >
+              {t.label}
+              {counts && <span className="ml-1.5 tabular-nums opacity-70">{counts[t.value]}</span>}
+            </Button>
+          ))}
+        </div>
+      </div>
       <div className="surface overflow-x-auto">
         <Table>
           <TableHeader>
@@ -139,7 +206,9 @@ function Clients({ onOpened }: { onOpened: () => void }) {
             {!query.isLoading && clients.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
-                  No sub-accounts have installed the app yet.
+                  {debounced || status !== "all"
+                    ? "No clients match your search or filter."
+                    : "No sub-accounts have installed the app yet."}
                 </TableCell>
               </TableRow>
             )}
@@ -171,6 +240,51 @@ function Clients({ onOpened }: { onOpened: () => void }) {
             ))}
           </TableBody>
         </Table>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+        <span>
+          {total === 0 ? "0 clients" : `Showing ${from}–${to} of ${total} clients`}
+          {query.isFetching && !query.isLoading ? " · updating…" : ""}
+        </span>
+        <div className="flex items-center gap-2">
+          <Select
+            value={String(pageSize)}
+            onValueChange={(v) => {
+              setPageSize(Number(v));
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="h-8 w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[25, 50, 100].map((n) => (
+                <SelectItem key={n} value={String(n)}>
+                  {n} per page
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            <ChevronLeft className="size-4" /> Previous
+          </Button>
+          <span className="tabular-nums">
+            Page {query.data?.page ?? page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next <ChevronRight className="size-4" />
+          </Button>
+        </div>
       </div>
       {(query.data?.recent_activity.length ?? 0) > 0 && (
         <div className="surface p-5">
