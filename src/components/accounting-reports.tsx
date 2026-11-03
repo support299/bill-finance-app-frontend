@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Download, FileText } from "lucide-react";
+import { ArrowUpRight, Download, FileText, MousePointerClick } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import type React from "react";
 import { useState } from "react";
@@ -111,10 +111,11 @@ function DrillLink({
         ...(drill.project ? { project: drill.project } : {}),
         ...(categoryId ? { category: categoryId } : { uncategorized: true }),
       }}
-      title="View these transactions"
-      className={`underline-offset-4 hover:text-primary hover:underline ${className ?? ""}`}
+      title={`View the transactions behind “${label}”`}
+      className={`group/drill inline-flex items-center gap-1 rounded-sm font-medium text-primary underline decoration-primary/40 decoration-dotted underline-offset-4 transition-colors hover:decoration-solid hover:decoration-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${className ?? ""}`}
     >
       {children}
+      <ArrowUpRight className="size-3.5 opacity-60 transition-all group-hover/drill:translate-x-0.5 group-hover/drill:-translate-y-0.5 group-hover/drill:opacity-100" />
     </Link>
   );
 }
@@ -125,7 +126,10 @@ function LineList({ rows, drill }: { rows: LineRow[]; drill?: Drill | undefined 
   return (
     <div className="space-y-1">
       {rows.map((r, i) => (
-        <div key={i} className="flex items-center justify-between text-sm">
+        <div
+          key={i}
+          className={`-mx-2 flex items-center justify-between rounded-md px-2 py-1 text-sm ${drill && r.name ? "transition-colors hover:bg-primary/10" : ""}`}
+        >
           <span className="text-muted-foreground">
             {drill && r.name ? (
               <DrillLink drill={drill} categoryId={r.category_id} label={r.name}>
@@ -258,10 +262,12 @@ function BalanceSheet({ bs, to }: { bs: AccountingData["balance_sheet"]; to: str
 function Statement({
   title,
   subtitle,
+  hint,
   children,
 }: {
   title: string;
   subtitle: string;
+  hint?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -269,6 +275,11 @@ function Statement({
       <div className="mb-6 text-center">
         <h2 className="text-lg font-bold uppercase tracking-wide">{title}</h2>
         <p className="text-sm text-muted-foreground">{subtitle}</p>
+        {hint && (
+          <p className="no-print mx-auto mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+            <MousePointerClick className="size-3.5" /> {hint}
+          </p>
+        )}
       </div>
       {children}
     </div>
@@ -398,6 +409,12 @@ function ComparisonStatement({
         <h2 className="text-lg font-bold uppercase tracking-wide">{model.title}</h2>
         <p className="text-sm text-muted-foreground">{model.subtitle}</p>
         <p className="text-xs text-muted-foreground">Compared with {model.compareLabel}</p>
+        {model.rows.some((r) => r.kind === "line" && r.gaap) && (
+          <p className="no-print mx-auto mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+            <MousePointerClick className="size-3.5" /> Click any line item to see the transactions
+            behind it
+          </p>
+        )}
       </div>
       <Table>
         <TableHeader>
@@ -571,6 +588,7 @@ export function AccountingReports({ from, to }: { from: string; to: string }) {
           <Statement
             title="Profit & Loss Statement"
             subtitle={`For the period ${formatDate(from)} – ${formatDate(to)}`}
+            hint="Click any line item to see the transactions behind it"
           >
             <StatementSection
               title="Revenue"

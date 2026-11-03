@@ -59,3 +59,36 @@ export const updateItemStatusFn = endpoint(async (d: { itemId: string }) => {
   await api.post(`/plaid/items/${d.itemId}/status/`, {});
   return { ok: true };
 });
+
+export interface CsvImportInput {
+  csvText: string;
+  accountId?: string | undefined;
+  institutionName?: string | undefined;
+  accountName?: string | undefined;
+  accountType?: string | undefined;
+  invertSign: boolean;
+  dryRun: boolean;
+}
+
+export interface CsvImportResult {
+  account_id?: string;
+  total: number;
+  added: number;
+  duplicates: number;
+  skipped: number;
+  skipped_rows: { line: number; reason: string }[];
+  date_from: string;
+  date_to: string;
+}
+
+export const importCsvFn = endpoint(async (d: CsvImportInput) =>
+  api.post<CsvImportResult>("/accounts/csv-import/", {
+    csv_text: d.csvText,
+    invert_sign: d.invertSign,
+    dry_run: d.dryRun,
+    ...(d.accountId ? { account_id: d.accountId } : {}),
+    ...(d.institutionName ? { institution_name: d.institutionName } : {}),
+    ...(d.accountName ? { account_name: d.accountName } : {}),
+    ...(d.accountType ? { account_type: d.accountType } : {}),
+  }),
+);

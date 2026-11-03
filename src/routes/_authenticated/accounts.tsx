@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { ConnectBankButton } from "@/components/connect-bank-button";
+import { CsvImportDialog } from "@/components/csv-import-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -106,6 +107,8 @@ function AccountsPage() {
 
   const items = query.data?.items ?? [];
   const accounts = query.data?.accounts ?? [];
+  const csvItemIds = new Set(items.filter((i) => i.connection_status === "csv").map((i) => i.id));
+  const csvAccounts = accounts.filter((a) => csvItemIds.has(a.plaid_item_id));
 
   return (
     <div className="space-y-6">
@@ -116,7 +119,10 @@ function AccountsPage() {
             Connected institutions, balances and sync health.
           </p>
         </div>
-        <ConnectBankButton />
+        <div className="flex flex-wrap gap-2">
+          <CsvImportDialog key={csvAccounts.map((a) => a.id).join()} csvAccounts={csvAccounts} />
+          <ConnectBankButton />
+        </div>
       </div>
 
       {leftoverCount > 0 && (
@@ -144,7 +150,8 @@ function AccountsPage() {
 
       {items.map((item) => {
         const itemAccounts = accounts.filter((a) => a.plaid_item_id === item.id);
-        const needsAttention = item.connection_status !== "good";
+        const isCsv = item.connection_status === "csv";
+        const needsAttention = !isCsv && item.connection_status !== "good";
         return (
           <div key={item.id} className="surface p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -155,46 +162,59 @@ function AccountsPage() {
                     <Badge variant="destructive" className="gap-1">
                       <AlertTriangle className="size-3" /> Needs attention
                     </Badge>
+                  ) : isCsv ? (
+                    <Badge variant="secondary">CSV upload</Badge>
                   ) : (
                     <Badge variant="secondary" className="gap-1">
                       <CheckCircle2 className="size-3" /> Connected
                     </Badge>
                   )}
-                  <Badge variant="outline">{item.environment}</Badge>
+                  {!isCsv && <Badge variant="outline">{item.environment}</Badge>}
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  Last synced {relativeTime(item.last_sync_at)} · {item.transaction_count}{" "}
-                  transactions
+                  {isCsv ? "Last upload" : "Last synced"} {relativeTime(item.last_sync_at)} ·{" "}
+                  {item.transaction_count} transactions
                 </p>
                 {item.error_message && (
                   <p className="mt-1 text-sm text-destructive">{item.error_message}</p>
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => syncMutation.mutate(item.id)}
-                  disabled={syncMutation.isPending}
-                >
-                  <RefreshCw className="size-4" /> Sync now
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => refreshMutation.mutate(item.id)}
-                  disabled={refreshMutation.isPending}
-                >
-                  Request refresh
-                </Button>
-                <ConnectBankButton
-                  itemId={item.id}
-                  variant="secondary"
-                  size="sm"
-                  label="Reconnect"
-                />
+                {isCsv ? (
+                  <CsvImportDialog
+                    key={csvAccounts.map((a) => a.id).join()}
+                    csvAccounts={csvAccounts.filter((a) => a.plaid_item_id === item.id)}
+                    variant="secondary"
+                    label="Upload more"
+                  />
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => syncMutation.mutate(item.id)}
+                      disabled={syncMutation.isPending}
+                    >
+                      <RefreshCw className="size-4" /> Sync now
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => refreshMutation.mutate(item.id)}
+                      disabled={refreshMutation.isPending}
+                    >
+                      Request refresh
+                    </Button>
+                    <ConnectBankButton
+                      itemId={item.id}
+                      variant="secondary"
+                      size="sm"
+                      label="Reconnect"
+                    />
+                  </>
+                )}
                 <Button variant="ghost" size="sm" onClick={() => setDisconnecting(item)}>
-                  <Trash2 className="size-4" /> Disconnect
+                  <Trash2 className="size-4" /> {isCsv ? "Remove" : "Disconnect"}
                 </Button>
               </div>
             </div>
