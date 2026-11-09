@@ -15,8 +15,12 @@ export const plaidConfigStatusFn = endpoint(async (_: void) => {
 });
 
 /** Only the short-lived link_token reaches the browser. */
-export const createLinkTokenFn = endpoint(async (d: { itemId?: string } | undefined) =>
-  api.post<{ link_token: string }>("/plaid/link-token/", d?.itemId ? { item_id: d.itemId } : {}),
+export const createLinkTokenFn = endpoint(
+  async (d: { itemId?: string; historyDays?: number } | undefined) =>
+    api.post<{ link_token: string }>("/plaid/link-token/", {
+      ...(d?.itemId ? { item_id: d.itemId } : {}),
+      ...(d?.historyDays ? { history_days: d.historyDays } : {}),
+    }),
 );
 
 export const exchangePublicTokenFn = endpoint(
@@ -24,11 +28,13 @@ export const exchangePublicTokenFn = endpoint(
     publicToken: string;
     institutionId?: string | undefined;
     institutionName?: string | undefined;
+    historyDays?: number | undefined;
   }) => {
     const r = await api.post<SyncOutcome & { item_id: string }>("/plaid/exchange/", {
       public_token: d.publicToken,
       ...(d.institutionId ? { institution_id: d.institutionId } : {}),
       ...(d.institutionName ? { institution_name: d.institutionName } : {}),
+      ...(d.historyDays ? { history_days: d.historyDays } : {}),
     });
     const { item_id, ...outcome } = r;
     return { itemId: item_id, ...outcome };

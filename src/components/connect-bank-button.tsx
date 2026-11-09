@@ -59,9 +59,12 @@ export function ConnectBankButton({
   label,
   variant = "default",
   size = "default",
+  historyDays,
 }: {
   className?: string;
   itemId?: string;
+  /** How many days of history Plaid should pull for a new connection (1–730). Default: Plaid's maximum, 730. */
+  historyDays?: number;
   label?: string;
   variant?: "default" | "outline" | "secondary" | "ghost";
   size?: "default" | "sm" | "lg";
@@ -76,7 +79,9 @@ export function ConnectBankButton({
     try {
       setStatus("Connecting…");
       await loadPlaidScript();
-      const { link_token } = await createLinkToken({ data: itemId ? { itemId } : {} });
+      const { link_token } = await createLinkToken({
+        data: { ...(itemId ? { itemId } : {}), ...(historyDays ? { historyDays } : {}) },
+      });
 
       const handler = window.Plaid!.create({
         token: link_token,
@@ -89,6 +94,7 @@ export function ConnectBankButton({
                 publicToken,
                 institutionId: metadata?.institution?.institution_id,
                 institutionName: metadata?.institution?.name,
+                historyDays,
               },
             });
             setStatus("Sync complete");
@@ -109,7 +115,7 @@ export function ConnectBankButton({
       setStatus("idle");
       toast.error((err as Error).message);
     }
-  }, [createLinkToken, exchange, itemId, queryClient]);
+  }, [createLinkToken, exchange, historyDays, itemId, queryClient]);
 
   const busy = status !== "idle" && status !== "Sync complete";
   if (!can_edit) return null;

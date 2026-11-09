@@ -11,6 +11,13 @@ import { Button } from "@/components/ui/button";
 import { Editable } from "@/components/editable";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -49,7 +56,15 @@ export const Route = createFileRoute("/_authenticated/accounts")({
   component: AccountsPage,
 });
 
+const HISTORY_CHOICES = [
+  { days: 30, label: "Last 30 days" },
+  { days: 90, label: "Last 90 days" },
+  { days: 365, label: "Last 12 months" },
+  { days: 730, label: "Last 24 months" },
+] as const;
+
 function AccountsPage() {
+  const [historyDays, setHistoryDays] = useState<number>(730);
   const queryClient = useQueryClient();
   const getAccounts = getAccountsFn;
   const sync = syncTransactionsFn;
@@ -149,11 +164,26 @@ function AccountsPage() {
             Connected institutions, balances and sync health.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Editable>
             <CsvImportDialog key={csvAccounts.map((a) => a.id).join()} csvAccounts={csvAccounts} />
+            <Select value={String(historyDays)} onValueChange={(v) => setHistoryDays(Number(v))}>
+              <SelectTrigger
+                className="w-44"
+                title="How far back to import when connecting a new bank. Older transactions are never pulled in, even after a reconnect."
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {HISTORY_CHOICES.map((c) => (
+                  <SelectItem key={c.days} value={String(c.days)}>
+                    {c.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Editable>
-          <ConnectBankButton />
+          <ConnectBankButton historyDays={historyDays} />
         </div>
       </div>
 
