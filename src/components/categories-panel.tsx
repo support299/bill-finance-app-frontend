@@ -1,11 +1,12 @@
 import { GAAP_TYPES, GAAP_TYPE_LABELS } from "@/api/gaap";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Wand2 } from "lucide-react";
+import { ArrowLeftRight, Plus, Trash2, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Editable } from "@/components/editable";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -15,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { deleteCategoryFn, listCategoriesFn, upsertCategoryFn } from "@/api/app";
-import { recategorizeAllFn } from "@/api/transactions";
+import { detectTransfersFn, recategorizeAllFn } from "@/api/transactions";
 
 const TYPES = GAAP_TYPES;
 
@@ -59,6 +60,19 @@ export function CategoriesPanel() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const detectTransfersMutation = useMutation({
+    mutationFn: () => detectTransfersFn({ data: undefined }),
+    onSuccess: (r) => {
+      toast.success(
+        r.updated
+          ? `${r.updated} transactions marked as transfers between your accounts`
+          : "No new transfers between your accounts found",
+      );
+      queryClient.invalidateQueries();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const categories = query.data?.categories ?? [];
 
   return (
@@ -70,43 +84,57 @@ export function CategoriesPanel() {
             US GAAP chart of accounts for small businesses, plus any custom categories you create.
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => recategorizeMutation.mutate()}
-          disabled={recategorizeMutation.isPending}
-        >
-          <Wand2 className="size-4" /> Re-run categorization
-        </Button>
+        <Editable>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              title="Pairs money moved between your own accounts, like a card payment from checking, so it is not counted as an expense."
+              onClick={() => detectTransfersMutation.mutate()}
+              disabled={detectTransfersMutation.isPending}
+            >
+              <ArrowLeftRight className="size-4" /> Find transfers
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => recategorizeMutation.mutate()}
+              disabled={recategorizeMutation.isPending}
+            >
+              <Wand2 className="size-4" /> Re-run categorization
+            </Button>
+          </div>
+        </Editable>
       </div>
 
-      <div className="surface flex flex-wrap items-end gap-3 p-4">
-        <div className="min-w-48 flex-1">
-          <label className="text-xs text-muted-foreground">New category name</label>
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Client software"
-          />
+      <Editable>
+        <div className="surface flex flex-wrap items-end gap-3 p-4">
+          <div className="min-w-48 flex-1">
+            <label className="text-xs text-muted-foreground">New category name</label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Client software"
+            />
+          </div>
+          <Select value={type} onValueChange={(v) => setType(v as (typeof TYPES)[number])}>
+            <SelectTrigger className="w-52">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {TYPES.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {GAAP_TYPE_LABELS[t]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            onClick={() => createMutation.mutate()}
+            disabled={!name.trim() || createMutation.isPending}
+          >
+            <Plus className="size-4" /> Add category
+          </Button>
         </div>
-        <Select value={type} onValueChange={(v) => setType(v as (typeof TYPES)[number])}>
-          <SelectTrigger className="w-52">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {TYPES.map((t) => (
-              <SelectItem key={t} value={t}>
-                {GAAP_TYPE_LABELS[t]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button
-          onClick={() => createMutation.mutate()}
-          disabled={!name.trim() || createMutation.isPending}
-        >
-          <Plus className="size-4" /> Add category
-        </Button>
-      </div>
+      </Editable>
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {TYPES.map((t) => (
@@ -126,13 +154,15 @@ export function CategoriesPanel() {
                         system
                       </Badge>
                     ) : (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deleteMutation.mutate(c.id)}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
+                      <Editable>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteMutation.mutate(c.id)}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </Editable>
                     )}
                   </li>
                 ))}

@@ -2,6 +2,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
 import { auth } from "@/api/auth";
+import { openGhlSso, requestGhlUserData, stashSsoPayload } from "@/api/access";
+import { ApiError } from "@/api/client";
 import { isTenantEmail, openGhlWorkspace, stashGhlLink } from "@/api/ghl";
 import {
   ArrowRight,
@@ -97,7 +99,21 @@ function Landing() {
         (async () => {
           let body;
           try {
-            body = await openGhlWorkspace(id, params.get("sig"));
+            // Inside GoHighLevel: ask the parent frame who is signed in, so the session names the person and their role.
+            // Outside it (no answer), fall back to the bare link; the server decides whether that is still allowed.
+            const payload = await requestGhlUserData();
+            if (payload) {
+              stashSsoPayload(payload);
+              try {
+                body = await openGhlSso(payload, id);
+              } catch (e) {
+                // Server has no shared secret yet (staged rollout): behave exactly as before SSO.
+                if (!(e instanceof ApiError && e.code === "not_configured")) throw e;
+                body = await openGhlWorkspace(id, params.get("sig"));
+              }
+            } else {
+              body = await openGhlWorkspace(id, params.get("sig"));
+            }
           } catch (e) {
             setGhlError(e instanceof Error ? e.message : "This link is not valid.");
             setGhlState("error");

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Editable } from "@/components/editable";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -182,12 +183,14 @@ function Start() {
             </Button>
           </div>
         ) : (
-          <Button
-            disabled={!accountId || ending === "" || start.isPending}
-            onClick={() => start.mutate()}
-          >
-            Start reconciling
-          </Button>
+          <Editable>
+            <Button
+              disabled={!accountId || ending === "" || start.isPending}
+              onClick={() => start.mutate()}
+            >
+              Start reconciling
+            </Button>
+          </Editable>
         )}
       </div>
 
@@ -355,37 +358,40 @@ function Workspace({ id }: { id: string }) {
           >
             <FileText className="size-4" /> Download PDF report
           </Button>
-          {done ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => reopen.mutate()}
-              disabled={reopen.isPending}
-            >
-              <Undo2 className="size-4" /> Reopen
-            </Button>
-          ) : (
-            <>
+          <Editable>
+            {done ? (
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="text-destructive"
-                onClick={() =>
-                  window.confirm("Delete this reconciliation? Ticked transactions are released.") &&
-                  remove.mutate()
-                }
+                onClick={() => reopen.mutate()}
+                disabled={reopen.isPending}
               >
-                Delete
+                <Undo2 className="size-4" /> Reopen
               </Button>
-              <Button
-                size="sm"
-                disabled={!r.balanced || finish.isPending}
-                onClick={() => finish.mutate()}
-              >
-                <CheckCircle2 className="size-4" /> Finish reconciliation
-              </Button>
-            </>
-          )}
+            ) : (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive"
+                  onClick={() =>
+                    window.confirm(
+                      "Delete this reconciliation? Ticked transactions are released.",
+                    ) && remove.mutate()
+                  }
+                >
+                  Delete
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={!r.balanced || finish.isPending}
+                  onClick={() => finish.mutate()}
+                >
+                  <CheckCircle2 className="size-4" /> Finish reconciliation
+                </Button>
+              </>
+            )}
+          </Editable>
         </div>
       </div>
 

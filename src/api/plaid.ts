@@ -55,6 +55,12 @@ export const removeItemFn = endpoint(async (d: { itemId: string; deleteData: boo
   return { ok: true };
 });
 
+/** Where a bank's history starts: transactions dated before it are ignored by the sync. `null` keeps everything. */
+export const setItemHistoryFromFn = endpoint(
+  async (d: { itemId: string; historyFrom: string | null }) =>
+    api.patch<PlaidItem>(`/plaid/items/${d.itemId}/`, { history_from: d.historyFrom }),
+);
+
 export const updateItemStatusFn = endpoint(async (d: { itemId: string }) => {
   await api.post(`/plaid/items/${d.itemId}/status/`, {});
   return { ok: true };

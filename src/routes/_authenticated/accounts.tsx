@@ -8,6 +8,7 @@ import { ConnectBankButton } from "@/components/connect-bank-button";
 import { CsvImportDialog } from "@/components/csv-import-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Editable } from "@/components/editable";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -17,11 +18,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatCurrency, relativeTime } from "@/lib/format";
+import { formatCurrency, formatDate, relativeTime } from "@/lib/format";
 import {
   getAccountsFn,
   refreshTransactionsFn,
   removeItemFn,
+  setItemHistoryFromFn,
   syncTransactionsFn,
 } from "@/api/plaid";
 import type { PlaidItem } from "@/api/types";
@@ -84,6 +86,34 @@ function AccountsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const historyMutation = useMutation({
+    mutationFn: (d: { itemId: string; historyFrom: string | null }) =>
+      setItemHistoryFromFn({ data: d }),
+    onSuccess: (item) => {
+      toast.success(
+        item.history_from
+          ? `History now starts ${formatDate(item.history_from)}.`
+          : "Full history will sync again.",
+      );
+      queryClient.invalidateQueries();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  function changeHistoryFrom(item: PlaidItem) {
+    const v = window.prompt(
+      "Ignore transactions dated before (YYYY-MM-DD). Leave empty to sync the full history.",
+      item.history_from ?? "",
+    );
+    if (v === null) return;
+    const historyFrom = v.trim() || null;
+    if (historyFrom && !/^\d{4}-\d{2}-\d{2}$/.test(historyFrom)) {
+      toast.error("Use the YYYY-MM-DD format.");
+      return;
+    }
+    historyMutation.mutate({ itemId: item.id, historyFrom });
+  }
+
   const removeMutation = useMutation({
     mutationFn: () => {
       if (!disconnecting) throw new Error("No connection selected.");
@@ -120,7 +150,9 @@ function AccountsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <CsvImportDialog key={csvAccounts.map((a) => a.id).join()} csvAccounts={csvAccounts} />
+          <Editable>
+            <CsvImportDialog key={csvAccounts.map((a) => a.id).join()} csvAccounts={csvAccounts} />
+          </Editable>
           <ConnectBankButton />
         </div>
       </div>
@@ -178,45 +210,64 @@ function AccountsPage() {
                 {item.error_message && (
                   <p className="mt-1 text-sm text-destructive">{item.error_message}</p>
                 )}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {isCsv ? (
-                  <CsvImportDialog
-                    key={csvAccounts.map((a) => a.id).join()}
-                    csvAccounts={csvAccounts.filter((a) => a.plaid_item_id === item.id)}
-                    variant="secondary"
-                    label="Upload more"
-                  />
-                ) : (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => syncMutation.mutate(item.id)}
-                      disabled={syncMutation.isPending}
-                    >
-                      <RefreshCw className="size-4" /> Sync now
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => refreshMutation.mutate(item.id)}
-                      disabled={refreshMutation.isPending}
-                    >
-                      Request refresh
-                    </Button>
-                    <ConnectBankButton
-                      itemId={item.id}
-                      variant="secondary"
-                      size="sm"
-                      label="Reconnect"
-                    />
-                  </>
+                {!isCsv && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {item.history_from
+                      ? `Ignoring transactions before ${formatDate(item.history_from)} (deleted history stays deleted, even after a reconnect).`
+                      : "Syncing the bank's full history."}{" "}
+                    <Editable>
+                      <button
+                        type="button"
+                        className="underline underline-offset-2 hover:text-foreground"
+                        onClick={() => changeHistoryFrom(item)}
+                        disabled={historyMutation.isPending}
+                      >
+                        Change
+                      </button>
+                    </Editable>
+                  </p>
                 )}
-                <Button variant="ghost" size="sm" onClick={() => setDisconnecting(item)}>
-                  <Trash2 className="size-4" /> {isCsv ? "Remove" : "Disconnect"}
-                </Button>
               </div>
+              <Editable>
+                <div className="flex flex-wrap gap-2">
+                  {isCsv ? (
+                    <CsvImportDialog
+                      key={csvAccounts.map((a) => a.id).join()}
+                      csvAccounts={csvAccounts.filter((a) => a.plaid_item_id === item.id)}
+                      variant="secondary"
+                      label="Upload more"
+                    />
+                  ) : (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => syncMutation.mutate(item.id)}
+                        disabled={syncMutation.isPending}
+                      >
+                        <RefreshCw className="size-4" /> Sync now
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => refreshMutation.mutate(item.id)}
+                        disabled={refreshMutation.isPending}
+                      >
+                        Request refresh
+                      </Button>
+                      <ConnectBankButton
+                        itemId={item.id}
+                        variant="secondary"
+                        size="sm"
+                        label="Reconnect"
+                      />
+                    </>
+                  )}
+                  <Button variant="ghost" size="sm" onClick={() => setDisconnecting(item)}>
+                    <Trash2 className="size-4" /> {isCsv ? "Remove" : "Disconnect"}
+                  </Button>
+                </div>
+              </Editable>
             </div>
 
             <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">

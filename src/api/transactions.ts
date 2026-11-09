@@ -1,6 +1,17 @@
 import { api, endpoint } from "./client";
 import type { GaapType, Paginated, Transaction } from "./types";
 
+export type TransactionSortKey =
+  | "transaction_date"
+  | "amount"
+  | "merchant_name"
+  | "description"
+  | "account"
+  | "gaap_type"
+  | "category"
+  | "status"
+  | "due_date";
+
 export interface TransactionFilters {
   search?: string | undefined;
   from?: string | undefined;
@@ -20,7 +31,11 @@ export interface TransactionFilters {
   minAmount?: number | undefined;
   maxAmount?: number | undefined;
   includeHidden?: boolean | undefined;
-  sortBy?: "transaction_date" | "amount" | "merchant_name" | undefined;
+  /** Bills: open payables (`accounts_payable`), settled ones (`paid`), or receivables. */
+  accountingStatus?:
+    ("accounts_receivable" | "received" | "accounts_payable" | "paid")[] | undefined;
+  dueBefore?: string | undefined;
+  sortBy?: TransactionSortKey | undefined;
   sortDir?: "asc" | "desc" | undefined;
   page?: number | undefined;
   pageSize?: number | undefined;
@@ -44,6 +59,8 @@ export function filterQuery(f: TransactionFilters = {}) {
     min_amount: f.minAmount,
     max_amount: f.maxAmount,
     include_hidden: f.includeHidden,
+    accounting_status: f.accountingStatus,
+    due_before: f.dueBefore,
     sort_by: f.sortBy,
     sort_dir: f.sortDir,
   };
@@ -128,13 +145,22 @@ export const recategorizeAllFn = endpoint(async (_: void) =>
   api.post<{ updated: number }>("/transactions/recategorize/", {}),
 );
 
-/** Permanently deletes transactions no longer tied to a bank (connected-bank and GHL rows are skipped). */
+/** Pairs money moved between your own accounts (e.g. a card payment) and marks both sides Internal Transfer. */
+export const detectTransfersFn = endpoint(async (_: void) =>
+  api.post<{ updated: number }>("/transactions/detect-transfers/", {}),
+);
+
+/**
+ * Permanently deletes transactions, bank-synced ones included (GHL invoices and reconciled rows are skipped).
+ * `history_from` is set when the banks involved had nothing left on or before the "to" date: from then on the sync
+ * ignores anything older, so a reconnect cannot bring the deleted history back.
+ */
 export const bulkDeleteTransactionsFn = endpoint(
   async (d: {
     ids?: string[];
     selectAll?: { filters: TransactionFilters; expectedCount: number };
   }) =>
-    api.post<{ deleted: number; skipped: number }>(
+    api.post<{ deleted: number; skipped: number; history_from: string | null }>(
       "/transactions/bulk-delete/",
       d.selectAll
         ? {

@@ -45,7 +45,15 @@ import {
 } from "@/lib/format";
 import { getReportDataFn } from "@/api/reports";
 
+type ReportsSearch = { from?: string; to?: string; tab?: string };
+
 export const Route = createFileRoute("/_authenticated/reports")({
+  // "Back to report" from Transactions restores the period and the tab the user drilled down from.
+  validateSearch: (raw: Record<string, unknown>): ReportsSearch => ({
+    ...(typeof raw["from"] === "string" ? { from: raw["from"] } : {}),
+    ...(typeof raw["to"] === "string" ? { to: raw["to"] } : {}),
+    ...(typeof raw["tab"] === "string" ? { tab: raw["tab"] } : {}),
+  }),
   head: () => ({
     meta: [
       { title: "Financial reports — ImaxAccounting" },
@@ -78,8 +86,10 @@ const PALETTE = [
 ];
 
 function ReportsPage() {
-  const [preset, setPreset] = useState<RangePreset>("last_6_months");
-  const [custom, setCustom] = useState({ from: "", to: "" });
+  const search = Route.useSearch();
+  const fromLink = Boolean(search.from && search.to);
+  const [preset, setPreset] = useState<RangePreset>(fromLink ? "custom" : "last_6_months");
+  const [custom, setCustom] = useState({ from: search.from ?? "", to: search.to ?? "" });
   const [includeTransfers, setIncludeTransfers] = useState(false);
 
   const range = useMemo(
@@ -164,7 +174,7 @@ function ReportsPage() {
         />
       </div>
 
-      <Tabs defaultValue="cashflow">
+      <Tabs defaultValue={search.tab ?? "cashflow"}>
         <TabsList>
           <TabsTrigger value="cashflow">Cash flow</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>

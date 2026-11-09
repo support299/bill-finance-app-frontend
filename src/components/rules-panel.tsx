@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Editable } from "@/components/editable";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -142,16 +143,18 @@ export function RulesPanel() {
             ))}
           </SelectContent>
         </Select>
-        <Button
-          onClick={() => createMutation.mutate()}
-          disabled={
-            keyword.trim().length < 2 ||
-            (!categoryId && (!ledgerId || ledgerId === "none")) ||
-            createMutation.isPending
-          }
-        >
-          <Plus className="size-4" /> Create rule
-        </Button>
+        <Editable>
+          <Button
+            onClick={() => createMutation.mutate()}
+            disabled={
+              keyword.trim().length < 2 ||
+              (!categoryId && (!ledgerId || ledgerId === "none")) ||
+              createMutation.isPending
+            }
+          >
+            <Plus className="size-4" /> Create rule
+          </Button>
+        </Editable>
       </div>
 
       <div className="surface overflow-x-auto">
@@ -194,9 +197,11 @@ export function RulesPanel() {
                   />
                 </TableCell>
                 <TableCell>
-                  <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(r.id)}>
-                    <Trash2 className="size-4" />
-                  </Button>
+                  <Editable>
+                    <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(r.id)}>
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </Editable>
                 </TableCell>
               </TableRow>
             ))}

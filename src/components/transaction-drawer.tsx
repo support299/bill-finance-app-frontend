@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Editable } from "@/components/editable";
 import {
   Select,
   SelectContent,
@@ -121,132 +122,143 @@ export function TransactionDrawer({
             </a>
           )}
 
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Category</p>
-            <Select
-              value={transaction.user_category_id ?? undefined}
-              onValueChange={(v) => {
-                const cat = categories.find((c) => c.id === v) ?? null;
-                updateMutation.mutate({ id: transaction.id, categoryId: v });
-                setPendingCategory(cat);
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Uncategorized" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name} · {c.type}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {pendingCategory && keyword && (
-            <div className="rounded-lg border border-primary/40 bg-accent/40 p-4">
-              <p className="text-sm font-medium">
-                Apply “{pendingCategory.name}” to future “{keyword}” transactions?
+          <Editable
+            fallback={
+              <p className="text-sm text-muted-foreground">
+                You have view-only access: category, project and classification cannot be changed.
               </p>
-              <div className="mt-3 flex gap-2">
-                <Button
-                  size="sm"
-                  onClick={() =>
-                    ruleMutation.mutate({
-                      keyword,
-                      matchType: "contains",
-                      categoryId: pendingCategory.id,
-                      source: "learned",
-                      applyToExisting: true,
-                    })
-                  }
-                  disabled={ruleMutation.isPending}
-                >
-                  Yes, create rule
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setPendingCategory(null)}>
-                  No thanks
-                </Button>
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Project</p>
-            <div className="flex flex-wrap gap-2">
+            }
+          >
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Category</p>
               <Select
-                value={transaction.project ?? "none"}
-                onValueChange={(v) =>
-                  updateMutation.mutate({ id: transaction.id, projectId: v === "none" ? null : v })
-                }
+                value={transaction.user_category_id ?? undefined}
+                onValueChange={(v) => {
+                  const cat = categories.find((c) => c.id === v) ?? null;
+                  updateMutation.mutate({ id: transaction.id, categoryId: v });
+                  setPendingCategory(cat);
+                }}
               >
-                <SelectTrigger className="w-52">
-                  <SelectValue placeholder="No project" />
+                <SelectTrigger>
+                  <SelectValue placeholder="Uncategorized" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No project</SelectItem>
-                  {(projects.data?.projects ?? []).map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
+                  {categories.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name} · {c.type}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {transaction.project && (
+            </div>
+
+            {pendingCategory && keyword && (
+              <div className="rounded-lg border border-primary/40 bg-accent/40 p-4">
+                <p className="text-sm font-medium">
+                  Apply “{pendingCategory.name}” to future “{keyword}” transactions?
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      ruleMutation.mutate({
+                        keyword,
+                        matchType: "contains",
+                        categoryId: pendingCategory.id,
+                        source: "learned",
+                        applyToExisting: true,
+                      })
+                    }
+                    disabled={ruleMutation.isPending}
+                  >
+                    Yes, create rule
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setPendingCategory(null)}>
+                    No thanks
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Project</p>
+              <div className="flex flex-wrap gap-2">
                 <Select
-                  value={transaction.project_role ?? "other"}
+                  value={transaction.project ?? "none"}
                   onValueChange={(v) =>
                     updateMutation.mutate({
                       id: transaction.id,
-                      projectRole: v as (typeof PROJECT_ROLES)[number],
+                      projectId: v === "none" ? null : v,
                     })
                   }
                 >
-                  <SelectTrigger className="w-44">
-                    <SelectValue />
+                  <SelectTrigger className="w-52">
+                    <SelectValue placeholder="No project" />
                   </SelectTrigger>
                   <SelectContent>
-                    {PROJECT_ROLES.map((r) => (
-                      <SelectItem key={r} value={r}>
-                        {PROJECT_ROLE_LABELS[r]}
+                    <SelectItem value="none">No project</SelectItem>
+                    {(projects.data?.projects ?? []).map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              )}
+                {transaction.project && (
+                  <Select
+                    value={transaction.project_role ?? "other"}
+                    onValueChange={(v) =>
+                      updateMutation.mutate({
+                        id: transaction.id,
+                        projectRole: v as (typeof PROJECT_ROLES)[number],
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-44">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROJECT_ROLES.map((r) => (
+                        <SelectItem key={r} value={r}>
+                          {PROJECT_ROLE_LABELS[r]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
             </div>
-          </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="outline">{GAAP_TYPE_LABELS[rowGaapType(transaction)]}</Badge>
-            <Select
-              value={rowGaapType(transaction)}
-              onValueChange={(v) =>
-                updateMutation.mutate({ id: transaction.id, classification: v as GaapType })
-              }
-            >
-              <SelectTrigger className="w-52">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {GAAP_TYPES.map((g) => (
-                  <SelectItem key={g} value={g}>
-                    {GAAP_TYPE_LABELS[g]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                updateMutation.mutate({ id: transaction.id, isHidden: !transaction.is_hidden })
-              }
-            >
-              {transaction.is_hidden ? "Unhide" : "Hide"} transaction
-            </Button>
-          </div>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline">{GAAP_TYPE_LABELS[rowGaapType(transaction)]}</Badge>
+              <Select
+                value={rowGaapType(transaction)}
+                onValueChange={(v) =>
+                  updateMutation.mutate({ id: transaction.id, classification: v as GaapType })
+                }
+              >
+                <SelectTrigger className="w-52">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {GAAP_TYPES.map((g) => (
+                    <SelectItem key={g} value={g}>
+                      {GAAP_TYPE_LABELS[g]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  updateMutation.mutate({ id: transaction.id, isHidden: !transaction.is_hidden })
+                }
+              >
+                {transaction.is_hidden ? "Unhide" : "Hide"} transaction
+              </Button>
+            </div>
+          </Editable>
         </div>
       </SheetContent>
     </Sheet>

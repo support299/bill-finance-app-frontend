@@ -110,6 +110,8 @@ export interface PlaidItem {
   last_sync_at: string | null;
   environment: string;
   created_at: string;
+  /** Transactions dated before this are ignored by the sync (set when history up to a date was deleted). */
+  history_from: string | null;
   transaction_count: number;
 }
 

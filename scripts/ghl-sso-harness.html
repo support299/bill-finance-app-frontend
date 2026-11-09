@@ -1,0 +1,69 @@
+<!doctype html>
+<!--
+  Local stand-in for GoHighLevel's custom-page container.
+
+  Loads the app in an iframe (like GoHighLevel does) and answers its REQUEST_USER_DATA message with user data encrypted
+  the way GoHighLevel does it (CryptoJS AES with the app's shared secret). Lets you sign in as any role without deploying.
+
+  Use:  open scripts/ghl-sso-harness.html   (backend on :8000 with GHL_SSO_SECRET set, frontend `npm run dev` on :5173)
+  Never deployed: scripts/ is not part of the build.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>GHL SSO harness</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+<style>
+  body { margin: 0; font: 13px system-ui, sans-serif; display: grid; grid-template-rows: auto 1fr; height: 100vh; }
+  form { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end; padding: 10px 12px; background: #f3f4f6; border-bottom: 1px solid #d1d5db; }
+  label { display: grid; gap: 2px; font-size: 11px; color: #4b5563; }
+  input, select { font: inherit; padding: 4px 6px; border: 1px solid #9ca3af; border-radius: 4px; }
+  button { font: inherit; padding: 6px 14px; border-radius: 4px; border: 1px solid #c2410c; background: #ea580c; color: #fff; cursor: pointer; }
+  #log { max-height: 70px; overflow: auto; width: 100%; font-family: ui-monospace, monospace; font-size: 11px; color: #374151; white-space: pre-wrap; }
+  iframe { width: 100%; height: 100%; border: 0; }
+</style>
+</head>
+<body>
+<form id="f" onsubmit="return false">
+  <label>App URL <input name="app" value="http://localhost:5173" size="22" /></label>
+  <label>Shared secret (GHL_SSO_SECRET) <input name="secret" type="password" size="28" /></label>
+  <label>Location id (?id=) <input name="loc" value="LOC1" size="10" /></label>
+  <label>Company id <input name="co" value="CO1" size="8" /></label>
+  <label>Type <select name="type"><option value="agency">agency</option><option value="location" selected>location</option></select></label>
+  <label>Role <select name="role"><option value="admin" selected>admin</option><option value="user">user</option></select></label>
+  <label>User id <input name="uid" value="U1" size="8" /></label>
+  <label>Name <input name="name" value="Pat Admin" size="12" /></label>
+  <label>Email <input name="email" value="pat@example.com" size="18" /></label>
+  <button id="go">Load as this user</button>
+  <div id="log"></div>
+</form>
+<iframe id="frame" title="app"></iframe>
+<script>
+  const f = document.getElementById("f"), frame = document.getElementById("frame"), log = document.getElementById("log");
+  const say = (m) => { log.textContent = `${new Date().toLocaleTimeString()}  ${m}\n` + log.textContent; };
+  const v = (n) => f.elements[n].value.trim();
+
+  function userData() {
+    return {
+      userId: v("uid"), companyId: v("co"), role: v("role"), type: v("type"),
+      activeLocation: v("loc"), userName: v("name"), email: v("email"),
+    };
+  }
+
+  document.getElementById("go").onclick = () => {
+    if (!v("secret")) { say("Enter the shared secret (same value as GHL_SSO_SECRET in backend/.env)."); return; }
+    const url = `${v("app").replace(/\/$/, "")}/?id=${encodeURIComponent(v("loc"))}&harness=${Date.now()}`;
+    say(`loading ${url} as ${v("type")} ${v("role")} ${v("uid")}`);
+    frame.src = url;
+  };
+
+  window.addEventListener("message", (event) => {
+    if (event.source !== frame.contentWindow) return;
+    if (event.data?.message !== "REQUEST_USER_DATA") return;
+    const payload = CryptoJS.AES.encrypt(JSON.stringify(userData()), v("secret")).toString();
+    event.source.postMessage({ message: "REQUEST_USER_DATA_RESPONSE", payload }, "*");
+    say(`answered REQUEST_USER_DATA for ${v("uid")} (${v("type")} ${v("role")})`);
+  });
+</script>
+</body>
+</html>

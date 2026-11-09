@@ -7,17 +7,21 @@ import {
   FileBarChart,
   LayoutDashboard,
   FolderKanban,
+  History,
   LogOut,
   Scale,
   Menu,
+  Receipt,
   RefreshCw,
   Settings,
   Table2,
+  Users,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { ConnectBankButton } from "@/components/connect-bank-button";
+import { LocationSwitcher } from "@/components/location-switcher";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -33,17 +37,24 @@ import { getProfileFn, listNotificationsFn, markNotificationsReadFn } from "@/ap
 import { relativeTime } from "@/lib/format";
 import { syncTransactionsFn } from "@/api/plaid";
 import { endSupportSession, supportSession } from "@/api/session";
+import { useAccess } from "@/hooks/use-access";
 import { cn } from "@/lib/utils";
 
 const nav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/ledgers", label: "Ledgers", icon: BookOpen },
+  { to: "/bills", label: "Bills", icon: Receipt },
   { to: "/transactions", label: "Bank Transactions", icon: Table2 },
   { to: "/accounts", label: "Bank Accounts", icon: Building2 },
   { to: "/reconcile", label: "Reconcile", icon: Scale },
   { to: "/projects", label: "Projects", icon: FolderKanban },
   { to: "/reports", label: "Reports", icon: FileBarChart },
   { to: "/settings", label: "Settings", icon: Settings },
+] as const;
+
+const adminNav = [
+  { to: "/users", label: "Users", icon: Users },
+  { to: "/activity", label: "Activity", icon: History },
 ] as const;
 
 function NavLinks({
@@ -54,6 +65,8 @@ function NavLinks({
   orientation?: "horizontal" | "vertical";
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { can_manage_users } = useAccess();
+  const items = can_manage_users ? [...nav, ...adminNav] : nav;
   return (
     <nav
       className={cn(
@@ -61,7 +74,7 @@ function NavLinks({
         orientation === "horizontal" ? "flex-row items-center" : "flex-col",
       )}
     >
-      {nav.map((item) => {
+      {items.map((item) => {
         const active = pathname.startsWith(item.to);
         return (
           <Link
@@ -137,6 +150,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   const support = supportSession();
+  const access = useAccess();
   function backToClients() {
     queryClient.clear();
     if (endSupportSession()) navigate({ to: "/agency", search: {} });
@@ -184,6 +198,15 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
+            {access.isViewer && (
+              <span
+                className="rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground"
+                title="You can look at everything but not change anything. Ask your agency administrator for edit access."
+              >
+                View only
+              </span>
+            )}
+            <LocationSwitcher />
             {!support && (
               <div className="hidden xl:block">
                 <ConnectBankButton />
@@ -193,7 +216,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               {syncMutation.isPending ? "Syncing…" : `Last activity ${relativeTime(lastSync)}`}
             </span>
 
-            {!support && (
+            {!support && access.can_edit && (
               <Button
                 variant="outline"
                 size="sm"

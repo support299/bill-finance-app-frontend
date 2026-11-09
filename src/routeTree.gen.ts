@@ -15,6 +15,8 @@ import { Route as AgencyRouteImport } from './routes/agency'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedAccountsRouteImport } from './routes/_authenticated/accounts'
+import { Route as AuthenticatedActivityRouteImport } from './routes/_authenticated/activity'
+import { Route as AuthenticatedBillsRouteImport } from './routes/_authenticated/bills'
 import { Route as AuthenticatedCategoriesRouteImport } from './routes/_authenticated/categories'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedProjectsRouteImport } from './routes/_authenticated/projects'
@@ -23,6 +25,7 @@ import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedRulesRouteImport } from './routes/_authenticated/rules'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedTransactionsRouteImport } from './routes/_authenticated/transactions'
+import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as AuthenticatedLedgersIndexRouteImport } from './routes/_authenticated/ledgers.index'
 import { Route as AuthenticatedLedgersLedgerIdRouteImport } from './routes/_authenticated/ledgers.$ledgerId'
 
@@ -53,6 +56,16 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const AuthenticatedAccountsRoute = AuthenticatedAccountsRouteImport.update({
   id: '/accounts',
   path: '/accounts',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedActivityRoute = AuthenticatedActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedBillsRoute = AuthenticatedBillsRouteImport.update({
+  id: '/bills',
+  path: '/bills',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedCategoriesRoute = AuthenticatedCategoriesRouteImport.update({
@@ -96,6 +109,11 @@ const AuthenticatedTransactionsRoute =
     path: '/transactions',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedUsersRoute = AuthenticatedUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedLedgersIndexRoute =
   AuthenticatedLedgersIndexRouteImport.update({
     id: '/ledgers/',
@@ -115,6 +133,8 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/accounts': typeof AuthenticatedAccountsRoute
+  '/activity': typeof AuthenticatedActivityRoute
+  '/bills': typeof AuthenticatedBillsRoute
   '/categories': typeof AuthenticatedCategoriesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/projects': typeof AuthenticatedProjectsRoute
@@ -123,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/rules': typeof AuthenticatedRulesRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/transactions': typeof AuthenticatedTransactionsRoute
+  '/users': typeof AuthenticatedUsersRoute
   '/ledgers/$ledgerId': typeof AuthenticatedLedgersLedgerIdRoute
   '/ledgers/': typeof AuthenticatedLedgersIndexRoute
 }
@@ -132,6 +153,8 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/accounts': typeof AuthenticatedAccountsRoute
+  '/activity': typeof AuthenticatedActivityRoute
+  '/bills': typeof AuthenticatedBillsRoute
   '/categories': typeof AuthenticatedCategoriesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/projects': typeof AuthenticatedProjectsRoute
@@ -140,6 +163,7 @@ export interface FileRoutesByTo {
   '/rules': typeof AuthenticatedRulesRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/transactions': typeof AuthenticatedTransactionsRoute
+  '/users': typeof AuthenticatedUsersRoute
   '/ledgers/$ledgerId': typeof AuthenticatedLedgersLedgerIdRoute
   '/ledgers': typeof AuthenticatedLedgersIndexRoute
 }
@@ -151,6 +175,8 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/accounts': typeof AuthenticatedAccountsRoute
+  '/_authenticated/activity': typeof AuthenticatedActivityRoute
+  '/_authenticated/bills': typeof AuthenticatedBillsRoute
   '/_authenticated/categories': typeof AuthenticatedCategoriesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/projects': typeof AuthenticatedProjectsRoute
@@ -159,6 +185,7 @@ export interface FileRoutesById {
   '/_authenticated/rules': typeof AuthenticatedRulesRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/transactions': typeof AuthenticatedTransactionsRoute
+  '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/ledgers/$ledgerId': typeof AuthenticatedLedgersLedgerIdRoute
   '/_authenticated/ledgers/': typeof AuthenticatedLedgersIndexRoute
 }
@@ -170,6 +197,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/accounts'
+    | '/activity'
+    | '/bills'
     | '/categories'
     | '/dashboard'
     | '/projects'
@@ -178,6 +207,7 @@ export interface FileRouteTypes {
     | '/rules'
     | '/settings'
     | '/transactions'
+    | '/users'
     | '/ledgers/$ledgerId'
     | '/ledgers/'
   fileRoutesByTo: FileRoutesByTo
@@ -187,6 +217,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/accounts'
+    | '/activity'
+    | '/bills'
     | '/categories'
     | '/dashboard'
     | '/projects'
@@ -195,6 +227,7 @@ export interface FileRouteTypes {
     | '/rules'
     | '/settings'
     | '/transactions'
+    | '/users'
     | '/ledgers/$ledgerId'
     | '/ledgers'
   id:
@@ -205,6 +238,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/_authenticated/accounts'
+    | '/_authenticated/activity'
+    | '/_authenticated/bills'
     | '/_authenticated/categories'
     | '/_authenticated/dashboard'
     | '/_authenticated/projects'
@@ -213,6 +248,7 @@ export interface FileRouteTypes {
     | '/_authenticated/rules'
     | '/_authenticated/settings'
     | '/_authenticated/transactions'
+    | '/_authenticated/users'
     | '/_authenticated/ledgers/$ledgerId'
     | '/_authenticated/ledgers/'
   fileRoutesById: FileRoutesById
@@ -267,6 +303,20 @@ declare module '@tanstack/react-router' {
       path: '/accounts'
       fullPath: '/accounts'
       preLoaderRoute: typeof AuthenticatedAccountsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/activity': {
+      id: '/_authenticated/activity'
+      path: '/activity'
+      fullPath: '/activity'
+      preLoaderRoute: typeof AuthenticatedActivityRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/bills': {
+      id: '/_authenticated/bills'
+      path: '/bills'
+      fullPath: '/bills'
+      preLoaderRoute: typeof AuthenticatedBillsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/categories': {
@@ -325,6 +375,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTransactionsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/users': {
+      id: '/_authenticated/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof AuthenticatedUsersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/ledgers/': {
       id: '/_authenticated/ledgers/'
       path: '/ledgers'
@@ -344,6 +401,8 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAccountsRoute: typeof AuthenticatedAccountsRoute
+  AuthenticatedActivityRoute: typeof AuthenticatedActivityRoute
+  AuthenticatedBillsRoute: typeof AuthenticatedBillsRoute
   AuthenticatedCategoriesRoute: typeof AuthenticatedCategoriesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedProjectsRoute: typeof AuthenticatedProjectsRoute
@@ -352,12 +411,15 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedRulesRoute: typeof AuthenticatedRulesRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTransactionsRoute: typeof AuthenticatedTransactionsRoute
+  AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
   AuthenticatedLedgersLedgerIdRoute: typeof AuthenticatedLedgersLedgerIdRoute
   AuthenticatedLedgersIndexRoute: typeof AuthenticatedLedgersIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAccountsRoute: AuthenticatedAccountsRoute,
+  AuthenticatedActivityRoute: AuthenticatedActivityRoute,
+  AuthenticatedBillsRoute: AuthenticatedBillsRoute,
   AuthenticatedCategoriesRoute: AuthenticatedCategoriesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedProjectsRoute: AuthenticatedProjectsRoute,
@@ -366,6 +428,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedRulesRoute: AuthenticatedRulesRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTransactionsRoute: AuthenticatedTransactionsRoute,
+  AuthenticatedUsersRoute: AuthenticatedUsersRoute,
   AuthenticatedLedgersLedgerIdRoute: AuthenticatedLedgersLedgerIdRoute,
   AuthenticatedLedgersIndexRoute: AuthenticatedLedgersIndexRoute,
 }

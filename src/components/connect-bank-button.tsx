@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { createLinkTokenFn, exchangePublicTokenFn } from "@/api/plaid";
+import { useAccess } from "@/hooks/use-access";
 
 interface PlaidMetadata {
   institution?: { institution_id?: string; name?: string } | null;
@@ -69,6 +70,7 @@ export function ConnectBankButton({
   const createLinkToken = createLinkTokenFn;
   const exchange = exchangePublicTokenFn;
   const [status, setStatus] = useState<ConnectStatus>("idle");
+  const { can_edit } = useAccess();
 
   const open = useCallback(async () => {
     try {
@@ -110,6 +112,7 @@ export function ConnectBankButton({
   }, [createLinkToken, exchange, itemId, queryClient]);
 
   const busy = status !== "idle" && status !== "Sync complete";
+  if (!can_edit) return null;
 
   return (
     <Button className={className} onClick={open} disabled={busy} variant={variant} size={size}>

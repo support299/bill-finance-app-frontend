@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Editable } from "@/components/editable";
 import {
   Dialog,
   DialogContent,
@@ -308,9 +309,11 @@ function LedgerDetailPage() {
             Account details, recorded entries and every transaction filed against this ledger.
           </p>
         </div>
-        <Button onClick={openNewEntry}>
-          <Plus className="size-4" /> Record transaction
-        </Button>
+        <Editable>
+          <Button onClick={openNewEntry}>
+            <Plus className="size-4" /> Record transaction
+          </Button>
+        </Editable>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -442,9 +445,15 @@ function LedgerDetailPage() {
                     <span className="text-muted-foreground"> → {r.categories.name}</span>
                   )}
                 </span>
-                <Button variant="ghost" size="icon" onClick={() => deleteRuleMutation.mutate(r.id)}>
-                  <Trash2 className="size-4" />
-                </Button>
+                <Editable>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => deleteRuleMutation.mutate(r.id)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </Editable>
               </div>
             ))}
           </div>
@@ -512,18 +521,20 @@ function LedgerDetailPage() {
                   {formatCurrency(Number(t.amount))}
                 </TableCell>
                 <TableCell className="whitespace-nowrap text-right">
-                  <Button variant="ghost" size="icon" onClick={() => openEditEntry(t)}>
-                    <Pencil className="size-4" />
-                  </Button>
-                  {t.source === "manual" && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deleteEntryMutation.mutate(t.id)}
-                    >
-                      <Trash2 className="size-4" />
+                  <Editable>
+                    <Button variant="ghost" size="icon" onClick={() => openEditEntry(t)}>
+                      <Pencil className="size-4" />
                     </Button>
-                  )}
+                    {t.source === "manual" && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteEntryMutation.mutate(t.id)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
+                  </Editable>
                 </TableCell>
               </TableRow>
             ))}

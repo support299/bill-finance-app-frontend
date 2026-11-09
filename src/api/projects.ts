@@ -26,7 +26,17 @@ export interface Project {
   status: "open" | "finished";
   budget: string | null;
   notes: string | null;
+  /** YYYY-MM-DD; null = open-ended. */
+  start_date: string | null;
+  end_date: string | null;
   created_at: string;
+}
+
+export interface ProjectListFilters {
+  status?: "open" | "finished" | "all" | undefined;
+  /** Keep projects active somewhere in this window (overlap, so undated projects still show). */
+  from?: string | undefined;
+  to?: string | undefined;
 }
 
 export interface ProjectReport extends ProjectTotals {
@@ -43,17 +53,30 @@ export interface ProjectReport extends ProjectTotals {
   }[];
 }
 
-export const listProjectsFn = endpoint(async (_: void) =>
-  api.get<{ projects: (Project & { totals: ProjectTotals })[] }>("/projects/"),
+export const listProjectsFn = endpoint(async (f: ProjectListFilters | undefined) =>
+  api.get<{ projects: (Project & { totals: ProjectTotals })[] }>("/projects/", {
+    status: f?.status,
+    from: f?.from,
+    to: f?.to,
+  }),
 );
 
 export const createProjectFn = endpoint(
-  async (d: { name: string; ledgerId?: string | null; budget?: number | null; notes?: string }) =>
+  async (d: {
+    name: string;
+    ledgerId?: string | null;
+    budget?: number | null;
+    notes?: string;
+    startDate?: string | null;
+    endDate?: string | null;
+  }) =>
     api.post<Project>("/projects/", {
       name: d.name,
       ...(d.ledgerId !== undefined ? { ledger_id: d.ledgerId } : {}),
       ...(d.budget !== undefined ? { budget: d.budget } : {}),
       ...(d.notes ? { notes: d.notes } : {}),
+      ...(d.startDate !== undefined ? { start_date: d.startDate } : {}),
+      ...(d.endDate !== undefined ? { end_date: d.endDate } : {}),
     }),
 );
 
@@ -64,12 +87,16 @@ export const updateProjectFn = endpoint(
     status?: "open" | "finished";
     budget?: number | null;
     ledgerId?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
   }) =>
     api.patch<Project>(`/projects/${d.id}/`, {
       ...(d.name !== undefined ? { name: d.name } : {}),
       ...(d.status ? { status: d.status } : {}),
       ...(d.budget !== undefined ? { budget: d.budget } : {}),
       ...(d.ledgerId !== undefined ? { ledger_id: d.ledgerId } : {}),
+      ...(d.startDate !== undefined ? { start_date: d.startDate } : {}),
+      ...(d.endDate !== undefined ? { end_date: d.endDate } : {}),
     }),
 );
 

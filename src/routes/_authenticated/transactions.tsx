@@ -1,13 +1,22 @@
 import { GAAP_TYPE_LABELS, rowGaapType } from "@/api/gaap";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { Download, EyeOff, Search, SlidersHorizontal } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Download,
+  EyeOff,
+  Search,
+  SlidersHorizontal,
+} from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { TransactionDrawer } from "@/components/transaction-drawer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Editable } from "@/components/editable";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
@@ -42,6 +51,7 @@ import {
   exportTransactionsFn,
   listTransactionsFn,
   type TransactionFilters,
+  type TransactionSortKey,
 } from "@/api/transactions";
 
 export const Route = createFileRoute("/_authenticated/transactions")({
@@ -200,11 +210,14 @@ function TransactionsPage() {
       });
     },
     onSuccess: (r) => {
-      toast.success(
-        r.skipped > 0
-          ? `${r.deleted} deleted · ${r.skipped} skipped (still linked to a connected bank or GoHighLevel)`
-          : `${r.deleted} transactions deleted`,
-      );
+      const parts = [`${r.deleted} deleted`];
+      if (r.skipped > 0)
+        parts.push(`${r.skipped} skipped (GoHighLevel invoices or reconciled rows)`);
+      if (r.history_from)
+        parts.push(
+          `bank history now starts ${formatDate(r.history_from)} so these cannot come back`,
+        );
+      toast.success(parts.join(" · "));
       setSelected([]);
       setAllMatching(false);
       queryClient.invalidateQueries();
@@ -214,6 +227,63 @@ function TransactionsPage() {
 
   const rows = query.data?.rows ?? [];
   const total = query.data?.total ?? 0;
+
+  function toggleSort(col: TransactionSortKey) {
+    setFilters((f) => ({
+      ...f,
+      sortBy: col,
+      // a new column starts descending for dates/amounts, ascending for names
+      sortDir:
+        f.sortBy === col
+          ? f.sortDir === "asc"
+            ? "desc"
+            : "asc"
+          : col === "transaction_date" || col === "amount"
+            ? "desc"
+            : "asc",
+      page: 1,
+    }));
+  }
+
+  function SortHead({
+    col,
+    className,
+    children,
+  }: {
+    col: TransactionSortKey;
+    className?: string;
+    children: ReactNode;
+  }) {
+    const active = (filters.sortBy ?? "transaction_date") === col;
+    const dir = filters.sortDir ?? "desc";
+    const right = className?.includes("text-right");
+    return (
+      <TableHead
+        className={`p-0 ${className ?? ""}`}
+        aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
+      >
+        <button
+          type="button"
+          onClick={() => toggleSort(col)}
+          title={`Sort by ${String(children).toLowerCase()}`}
+          className={`group flex h-full w-full items-center gap-1 px-2 py-2 text-left font-medium transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary ${
+            right ? "justify-end" : ""
+          } ${active ? "text-primary" : ""}`}
+        >
+          {children}
+          {active ? (
+            dir === "asc" ? (
+              <ArrowUp className="size-3.5" />
+            ) : (
+              <ArrowDown className="size-3.5" />
+            )
+          ) : (
+            <ArrowUpDown className="size-3.5 opacity-40 transition-opacity group-hover:opacity-100" />
+          )}
+        </button>
+      </TableHead>
+    );
+  }
   const pageFullySelected = rows.length > 0 && rows.every((r) => selected.includes(r.id));
   const count = allMatching ? total : selected.length;
 
@@ -221,7 +291,7 @@ function TransactionsPage() {
     const n = allMatching ? total : selected.length;
     if (
       window.confirm(
-        `Permanently delete ${n} transaction${n === 1 ? "" : "s"}? This cannot be undone.\n\nOnly transactions whose bank connection was removed (and manual entries) are deleted. Ones still linked to a connected bank are skipped — disconnect that bank with "delete data" instead.`,
+        `Permanently delete ${n} transaction${n === 1 ? "" : "s"}? This cannot be undone.\n\nBank-synced transactions are deleted too and the bank stays connected. If a bank is left with nothing on or before the "to" date, its history is set to start after that date, so a later reconnect cannot bring these back. GoHighLevel invoices and reconciled rows are skipped.`,
       )
     )
       deleteMutation.mutate();
@@ -292,9 +362,21 @@ function TransactionsPage() {
               )}
               {drill.from && drill.to && ` · ${formatDate(drill.from)} – ${formatDate(drill.to)}`}
             </span>
-            <Button variant="ghost" size="sm" onClick={clearDrill}>
-              Clear filter
-            </Button>
+            <span className="flex items-center gap-1">
+              {drill.gaap && drill.from && drill.to && (
+                <Button asChild variant="outline" size="sm">
+                  <Link
+                    to="/reports"
+                    search={{ from: drill.from, to: drill.to, tab: "accounting" }}
+                  >
+                    ← Back to report
+                  </Link>
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={clearDrill}>
+                Clear filter
+              </Button>
+            </span>
           </div>
         )}
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -449,94 +531,96 @@ function TransactionsPage() {
       </div>
 
       {selected.length > 0 && (
-        <div className="surface flex flex-wrap items-center gap-3 p-4">
-          <span className="text-sm font-medium">
-            {allMatching ? `All ${total} matching transactions selected` : `${count} selected`}
-          </span>
-          {!allMatching && pageFullySelected && total > rows.length && (
-            <Button
-              variant="link"
-              size="sm"
-              className="h-auto p-0"
-              onClick={() => setAllMatching(true)}
-            >
-              Select all {total} matching
-            </Button>
-          )}
-          <Select onValueChange={applyCategory}>
-            <SelectTrigger className="w-60">
-              <SelectValue placeholder="Set category…" />
-            </SelectTrigger>
-            <SelectContent>
-              {(categories.data?.categories ?? []).map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name} · {c.type}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="flex items-center gap-2">
-            <Select value={projectPick} onValueChange={setProjectPick}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Add to project…" />
+        <Editable>
+          <div className="surface flex flex-wrap items-center gap-3 p-4">
+            <span className="text-sm font-medium">
+              {allMatching ? `All ${total} matching transactions selected` : `${count} selected`}
+            </span>
+            {!allMatching && pageFullySelected && total > rows.length && (
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto p-0"
+                onClick={() => setAllMatching(true)}
+              >
+                Select all {total} matching
+              </Button>
+            )}
+            <Select onValueChange={applyCategory}>
+              <SelectTrigger className="w-60">
+                <SelectValue placeholder="Set category…" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Remove from project</SelectItem>
-                {(projects.data?.projects ?? []).map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
+                {(categories.data?.categories ?? []).map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name} · {c.type}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {projectPick && projectPick !== "none" && (
-              <Select
-                value={rolePick}
-                onValueChange={(v) => setRolePick(v as ProjectRole | "auto")}
-              >
-                <SelectTrigger className="w-40">
-                  <SelectValue />
+            <div className="flex items-center gap-2">
+              <Select value={projectPick} onValueChange={setProjectPick}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Add to project…" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="auto">Role: automatic</SelectItem>
-                  {PROJECT_ROLES.map((r) => (
-                    <SelectItem key={r} value={r}>
-                      {PROJECT_ROLE_LABELS[r]}
+                  <SelectItem value="none">Remove from project</SelectItem>
+                  {(projects.data?.projects ?? []).map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            )}
-            {projectPick && (
-              <Button
-                size="sm"
-                onClick={() => assignMutation.mutate()}
-                disabled={assignMutation.isPending}
-              >
-                Apply
-              </Button>
-            )}
+              {projectPick && projectPick !== "none" && (
+                <Select
+                  value={rolePick}
+                  onValueChange={(v) => setRolePick(v as ProjectRole | "auto")}
+                >
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Role: automatic</SelectItem>
+                    {PROJECT_ROLES.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {PROJECT_ROLE_LABELS[r]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {projectPick && (
+                <Button
+                  size="sm"
+                  onClick={() => assignMutation.mutate()}
+                  disabled={assignMutation.isPending}
+                >
+                  Apply
+                </Button>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive"
+              onClick={deleteSelected}
+              disabled={deleteMutation.isPending}
+            >
+              Delete…
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSelected([]);
+                setAllMatching(false);
+              }}
+            >
+              Clear
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-destructive"
-            onClick={deleteSelected}
-            disabled={deleteMutation.isPending}
-          >
-            Delete…
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setSelected([]);
-              setAllMatching(false);
-            }}
-          >
-            Clear
-          </Button>
-        </div>
+        </Editable>
       )}
 
       <div className="surface overflow-x-auto">
@@ -544,44 +628,30 @@ function TransactionsPage() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-8">
-                <Checkbox
-                  checked={pageFullySelected}
-                  onCheckedChange={(v) => {
-                    setSelected(v ? rows.map((r) => r.id) : []);
-                    if (!v) setAllMatching(false);
-                  }}
-                />
+                <Editable>
+                  <Checkbox
+                    checked={pageFullySelected}
+                    onCheckedChange={(v) => {
+                      setSelected(v ? rows.map((r) => r.id) : []);
+                      if (!v) setAllMatching(false);
+                    }}
+                  />
+                </Editable>
               </TableHead>
-              <TableHead
-                className="cursor-pointer"
-                onClick={() =>
-                  setFilters((f) => ({
-                    ...f,
-                    sortBy: "transaction_date",
-                    sortDir: f.sortDir === "asc" ? "desc" : "asc",
-                  }))
-                }
-              >
-                Date
-              </TableHead>
-              <TableHead>Merchant</TableHead>
-              <TableHead className="hidden md:table-cell">Description</TableHead>
-              <TableHead className="hidden lg:table-cell">Account</TableHead>
-              <TableHead
-                className="cursor-pointer text-right"
-                onClick={() =>
-                  setFilters((f) => ({
-                    ...f,
-                    sortBy: "amount",
-                    sortDir: f.sortDir === "asc" ? "desc" : "asc",
-                  }))
-                }
-              >
+              <SortHead col="transaction_date">Date</SortHead>
+              <SortHead col="merchant_name">Merchant</SortHead>
+              <SortHead col="description" className="hidden md:table-cell">
+                Description
+              </SortHead>
+              <SortHead col="account" className="hidden lg:table-cell">
+                Account
+              </SortHead>
+              <SortHead col="amount" className="text-right">
                 Amount
-              </TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Status</TableHead>
+              </SortHead>
+              <SortHead col="gaap_type">Type</SortHead>
+              <SortHead col="category">Category</SortHead>
+              <SortHead col="status">Status</SortHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -602,12 +672,14 @@ function TransactionsPage() {
             {rows.map((t) => (
               <TableRow key={t.id} className="cursor-pointer" onClick={() => setActive(t)}>
                 <TableCell onClick={(e) => e.stopPropagation()}>
-                  <Checkbox
-                    checked={selected.includes(t.id)}
-                    onCheckedChange={(v) =>
-                      setSelected((s) => (v ? [...s, t.id] : s.filter((id) => id !== t.id)))
-                    }
-                  />
+                  <Editable>
+                    <Checkbox
+                      checked={selected.includes(t.id)}
+                      onCheckedChange={(v) =>
+                        setSelected((s) => (v ? [...s, t.id] : s.filter((id) => id !== t.id)))
+                      }
+                    />
+                  </Editable>
                 </TableCell>
                 <TableCell className="whitespace-nowrap">
                   {formatDate(t.transaction_date)}

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Editable } from "@/components/editable";
 import {
   Dialog,
   DialogContent,
@@ -60,6 +61,11 @@ export const Route = createFileRoute("/_authenticated/projects")({
 
 const money = (v: string | number) => formatCurrency(Number(v));
 
+function projectDates(p: { start_date: string | null; end_date: string | null }) {
+  if (!p.start_date && !p.end_date) return "—";
+  return `${p.start_date ? formatDate(p.start_date) : "…"} – ${p.end_date ? formatDate(p.end_date) : "…"}`;
+}
+
 function ProjectsPage() {
   const { id } = Route.useSearch();
   return (
@@ -78,9 +84,15 @@ function ProjectsPage() {
 function ProjectList() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [status, setStatus] = useState<"all" | "open" | "finished">("all");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const projects = useQuery({
-    queryKey: ["projects"],
-    queryFn: () => listProjectsFn({ data: undefined }),
+    queryKey: ["projects", status, from, to],
+    queryFn: () =>
+      listProjectsFn({
+        data: { status, ...(from ? { from } : {}), ...(to ? { to } : {}) },
+      }),
   });
   const ledgers = useQuery({
     queryKey: ["ledgers-list"],
@@ -90,6 +102,8 @@ function ProjectList() {
   const [name, setName] = useState("");
   const [customer, setCustomer] = useState("none");
   const [budget, setBudget] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const create = useMutation({
     mutationFn: () =>
@@ -98,6 +112,8 @@ function ProjectList() {
           name: name.trim(),
           ledgerId: customer === "none" ? null : customer,
           budget: budget === "" ? null : Number(budget),
+          startDate: startDate || null,
+          endDate: endDate || null,
         },
       }),
     onSuccess: (p) => {
@@ -105,6 +121,8 @@ function ProjectList() {
       setOpen(false);
       setName("");
       setBudget("");
+      setStartDate("");
+      setEndDate("");
       navigate({ to: "/projects", search: { id: p.id } });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -113,10 +131,48 @@ function ProjectList() {
   const rows = projects.data?.projects ?? [];
   return (
     <>
-      <div className="flex justify-end">
-        <Button onClick={() => setOpen(true)}>
-          <Plus className="size-4" /> New project
-        </Button>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="space-y-1">
+            <Label className="text-xs">Status</Label>
+            <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
+              <SelectTrigger className="w-36">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="open">Open</SelectItem>
+                <SelectItem value="finished">Finished</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Active from</Label>
+            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Active to</Label>
+            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          </div>
+          {(from || to || status !== "all") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setStatus("all");
+                setFrom("");
+                setTo("");
+              }}
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+        <Editable>
+          <Button onClick={() => setOpen(true)}>
+            <Plus className="size-4" /> New project
+          </Button>
+        </Editable>
       </div>
       <div className="surface overflow-x-auto">
         <Table>
@@ -124,6 +180,7 @@ function ProjectList() {
             <TableRow>
               <TableHead>Project</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="hidden md:table-cell">Dates</TableHead>
               <TableHead className="text-right">Revenue</TableHead>
               <TableHead className="text-right">Costs</TableHead>
               <TableHead className="text-right">Profit</TableHead>
@@ -133,8 +190,10 @@ function ProjectList() {
           <TableBody>
             {rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                  No projects yet. Create one, then add transactions to it from Bank Transactions.
+                <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                  {from || to || status !== "all"
+                    ? "No projects match these filters."
+                    : "No projects yet. Create one, then add transactions to it from Bank Transactions."}
                 </TableCell>
               </TableRow>
             )}
@@ -143,6 +202,9 @@ function ProjectList() {
                 <TableCell className="font-medium">{p.name}</TableCell>
                 <TableCell>
                   <Badge variant={p.status === "open" ? "default" : "outline"}>{p.status}</Badge>
+                </TableCell>
+                <TableCell className="hidden whitespace-nowrap text-xs text-muted-foreground md:table-cell">
+                  {projectDates(p)}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{money(p.totals.revenue)}</TableCell>
                 <TableCell className="text-right tabular-nums">
@@ -207,6 +269,20 @@ function ProjectList() {
                 onChange={(e) => setBudget(e.target.value)}
               />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Start date (optional)</Label>
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>End date (optional)</Label>
+                <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button disabled={!name.trim() || create.isPending} onClick={() => create.mutate()}>
@@ -259,7 +335,11 @@ function ProjectDetail({ id }: { id: string }) {
   });
 
   const update = useMutation({
-    mutationFn: (v: { status: "open" | "finished" }) => updateProjectFn({ data: { id, ...v } }),
+    mutationFn: (v: {
+      status?: "open" | "finished";
+      startDate?: string | null;
+      endDate?: string | null;
+    }) => updateProjectFn({ data: { id, ...v } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project", id] });
       queryClient.invalidateQueries({ queryKey: ["projects"] });
@@ -298,6 +378,23 @@ function ProjectDetail({ id }: { id: string }) {
             {project.status}
           </Badge>
           {customer && <span className="text-sm text-muted-foreground">for {customer}</span>}
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Input
+              type="date"
+              className="h-8 w-36"
+              value={project.start_date ?? ""}
+              title="Start date"
+              onChange={(e) => update.mutate({ startDate: e.target.value || null })}
+            />
+            –
+            <Input
+              type="date"
+              className="h-8 w-36"
+              value={project.end_date ?? ""}
+              title="End date"
+              onChange={(e) => update.mutate({ endDate: e.target.value || null })}
+            />
+          </span>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -314,27 +411,29 @@ function ProjectDetail({ id }: { id: string }) {
               View in Transactions
             </Link>
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              update.mutate({ status: project.status === "open" ? "finished" : "open" })
-            }
-          >
-            {project.status === "open" ? "Mark finished" : "Reopen"}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-destructive"
-            onClick={() =>
-              window.confirm(
-                "Delete this project? Its transactions are kept, just no longer tied to a project.",
-              ) && remove.mutate()
-            }
-          >
-            Delete
-          </Button>
+          <Editable>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                update.mutate({ status: project.status === "open" ? "finished" : "open" })
+              }
+            >
+              {project.status === "open" ? "Mark finished" : "Reopen"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive"
+              onClick={() =>
+                window.confirm(
+                  "Delete this project? Its transactions are kept, just no longer tied to a project.",
+                ) && remove.mutate()
+              }
+            >
+              Delete
+            </Button>
+          </Editable>
         </div>
       </div>
 

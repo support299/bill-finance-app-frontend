@@ -8,6 +8,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Editable } from "@/components/editable";
 import {
   Dialog,
   DialogContent,
@@ -152,74 +153,78 @@ function LedgersPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <GhlHeaderButtons />
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="size-4" /> New ledger account
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>New ledger account</DialogTitle>
-                <DialogDescription>
-                  Label is required. Contact information is optional.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs text-muted-foreground">Label *</label>
-                  <Input
-                    value={label}
-                    onChange={(e) => setLabel(e.target.value)}
-                    placeholder="e.g. Acme Supplies"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">Account class *</label>
-                  <Select
-                    value={accountClass}
-                    onValueChange={(v) => setAccountClass(v as typeof accountClass)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a class" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ACCOUNT_CLASSES.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {ACCOUNT_CLASS_LABELS[c]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">Contact name</label>
-                  <Input value={contactName} onChange={(e) => setContactName(e.target.value)} />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">Email</label>
-                  <Input
-                    value={contactEmail}
-                    onChange={(e) => setContactEmail(e.target.value)}
-                    type="email"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">Phone</label>
-                  <Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button
-                  onClick={() => createMutation.mutate()}
-                  disabled={label.trim().length === 0 || !accountClass || createMutation.isPending}
-                >
-                  Create ledger
+          <Editable>
+            <GhlHeaderButtons />
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="size-4" /> New ledger account
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>New ledger account</DialogTitle>
+                  <DialogDescription>
+                    Label is required. Contact information is optional.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Label *</label>
+                    <Input
+                      value={label}
+                      onChange={(e) => setLabel(e.target.value)}
+                      placeholder="e.g. Acme Supplies"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Account class *</label>
+                    <Select
+                      value={accountClass}
+                      onValueChange={(v) => setAccountClass(v as typeof accountClass)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a class" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ACCOUNT_CLASSES.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {ACCOUNT_CLASS_LABELS[c]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Contact name</label>
+                    <Input value={contactName} onChange={(e) => setContactName(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Email</label>
+                    <Input
+                      value={contactEmail}
+                      onChange={(e) => setContactEmail(e.target.value)}
+                      type="email"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Phone</label>
+                    <Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    onClick={() => createMutation.mutate()}
+                    disabled={
+                      label.trim().length === 0 || !accountClass || createMutation.isPending
+                    }
+                  >
+                    Create ledger
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </Editable>
         </div>
       </div>
 
@@ -294,9 +299,15 @@ function LedgersPage() {
                   <TableCell>{l.contact_phone ?? "—"}</TableCell>
                   <TableCell className="text-right tabular-nums">{s.count}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(l.id)}>
-                      <Trash2 className="size-4" />
-                    </Button>
+                    <Editable>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteMutation.mutate(l.id)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </Editable>
                   </TableCell>
                 </TableRow>
               );
