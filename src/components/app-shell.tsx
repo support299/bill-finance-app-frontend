@@ -171,10 +171,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       )}
       <header className="no-print sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
-        <div className="flex items-center gap-3 px-4 py-3">
+        <div className="flex min-w-0 items-center gap-3 px-4 py-3">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="xl:hidden">
+              <Button variant="ghost" size="icon" className="2xl:hidden">
                 <Menu className="size-5" />
               </Button>
             </SheetTrigger>
@@ -188,16 +188,20 @@ export function AppShell({ children }: { children: ReactNode }) {
             </SheetContent>
           </Sheet>
 
-          <Link to="/dashboard" className="flex items-center gap-2 font-display text-lg font-bold">
+          <Link
+            to="/dashboard"
+            className="flex shrink-0 items-center gap-2 font-display text-lg font-bold"
+          >
             <img src="/logo.png" alt="" className="size-9 object-contain" />
             <span className="hidden sm:inline">ImaxAccounting</span>
           </Link>
 
-          <div className="ml-4 hidden xl:block">
+          {/* Inline nav only on very wide screens; it scrolls inside itself rather than widening the page. */}
+          <div className="ml-4 hidden min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] 2xl:block [&::-webkit-scrollbar]:hidden">
             <NavLinks />
           </div>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-2">
             {access.isViewer && (
               <span
                 className="rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground"
@@ -208,7 +212,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             )}
             <LocationSwitcher />
             {!support && (
-              <div className="hidden xl:block">
+              <div className="hidden 2xl:block">
                 <ConnectBankButton />
               </div>
             )}
