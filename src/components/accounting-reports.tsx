@@ -1,5 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, Download, FileText, MousePointerClick } from "lucide-react";
+import {
+  ArrowUpRight,
+  ChevronDown,
+  ChevronRight,
+  Download,
+  FileText,
+  MousePointerClick,
+} from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import type React from "react";
 import { useState } from "react";
@@ -33,7 +40,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getAccountingReportsFn, type AccountingReports as AccountingData } from "@/api/accounting";
+import {
+  getAccountingReportsFn,
+  type AccountingReports as AccountingData,
+  type BsLine,
+  type PlSort,
+} from "@/api/accounting";
 import { getProfileFn } from "@/api/app";
 import { listProjectsFn } from "@/api/projects";
 import { ACCOUNT_CLASS_LABELS, ACCOUNTING_STATUS_LABELS } from "@/api/ledgers";
@@ -82,24 +94,39 @@ type LineRow = {
   value?: number;
   balance?: number;
   category_id?: string | null;
+  category_ids?: string[] | undefined;
+  children?: LineRow[] | undefined;
 };
 
 /** Where a P&L line leads: Transactions filtered to that category, period and statement bucket. */
 export type Drill = { gaap: string; from: string; to: string; project?: string | undefined };
 
+const DRILL_CLASS =
+  "group/drill inline-flex items-center gap-1 rounded-sm font-medium text-primary underline decoration-primary/40 decoration-dotted underline-offset-4 transition-colors hover:decoration-solid hover:decoration-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
+
+function DrillArrow() {
+  return (
+    <ArrowUpRight className="size-3.5 opacity-60 transition-all group-hover/drill:translate-x-0.5 group-hover/drill:-translate-y-0.5 group-hover/drill:opacity-100" />
+  );
+}
+
 function DrillLink({
   drill,
   categoryId,
+  categoryIds,
   label,
   children,
   className,
 }: {
   drill: Drill;
   categoryId: string | null | undefined;
+  /** A line with sub-categories opens everything filed under it. */
+  categoryIds?: string[] | undefined;
   label: string;
   children: React.ReactNode;
   className?: string;
 }) {
+  const many = categoryIds && categoryIds.length > 1 ? categoryIds.join(",") : null;
   return (
     <Link
       to="/transactions"
@@ -109,14 +136,76 @@ function DrillLink({
         gaap: drill.gaap,
         label,
         ...(drill.project ? { project: drill.project } : {}),
-        ...(categoryId ? { category: categoryId } : { uncategorized: true }),
+        ...(many
+          ? { categories: many }
+          : categoryId
+            ? { category: categoryId }
+            : { uncategorized: true }),
       }}
       title={`View the transactions behind “${label}”`}
-      className={`group/drill inline-flex items-center gap-1 rounded-sm font-medium text-primary underline decoration-primary/40 decoration-dotted underline-offset-4 transition-colors hover:decoration-solid hover:decoration-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${className ?? ""}`}
+      className={`${DRILL_CLASS} ${className ?? ""}`}
     >
       {children}
-      <ArrowUpRight className="size-3.5 opacity-60 transition-all group-hover/drill:translate-x-0.5 group-hover/drill:-translate-y-0.5 group-hover/drill:opacity-100" />
+      <DrillArrow />
     </Link>
+  );
+}
+
+function LineItem({
+  r,
+  drill,
+  depth = 0,
+}: {
+  r: LineRow;
+  drill?: Drill | undefined;
+  depth?: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const kids = r.children ?? [];
+  const name = r.name ?? r.label ?? "";
+  return (
+    <>
+      <div
+        className={`-mx-2 flex items-center justify-between rounded-md px-2 py-1 text-sm ${drill && r.name ? "transition-colors hover:bg-primary/10" : ""}`}
+      >
+        <span
+          className="flex items-center gap-1 text-muted-foreground"
+          style={{ paddingLeft: depth * 20 }}
+        >
+          {kids.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => setOpen((o) => !o)}
+              aria-expanded={open}
+              aria-label={`${open ? "Collapse" : "Expand"} ${name}`}
+              className="no-print -ml-1 rounded p-0.5 hover:bg-accent"
+            >
+              {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+            </button>
+          ) : depth === 0 && drill ? (
+            <span className="no-print inline-block w-4" />
+          ) : null}
+          {drill && r.name ? (
+            <DrillLink
+              drill={drill}
+              categoryId={r.category_id}
+              categoryIds={r.category_ids}
+              label={name}
+            >
+              {name}
+            </DrillLink>
+          ) : (
+            name
+          )}
+          {kids.length > 0 && !open && <span className="text-xs">({kids.length})</span>}
+        </span>
+        <span className="tabular-nums">{formatCurrency(Number(r.value ?? r.balance ?? 0))}</span>
+      </div>
+      {open &&
+        kids.map((k, i) => (
+          <LineItem key={`${k.category_id ?? "x"}-${i}`} r={k} drill={drill} depth={depth + 1} />
+        ))}
+    </>
   );
 }
 
@@ -126,29 +215,50 @@ function LineList({ rows, drill }: { rows: LineRow[]; drill?: Drill | undefined 
   return (
     <div className="space-y-1">
       {rows.map((r, i) => (
-        <div
-          key={i}
-          className={`-mx-2 flex items-center justify-between rounded-md px-2 py-1 text-sm ${drill && r.name ? "transition-colors hover:bg-primary/10" : ""}`}
-        >
-          <span className="text-muted-foreground">
-            {drill && r.name ? (
-              <DrillLink drill={drill} categoryId={r.category_id} label={r.name}>
-                {r.name}
-              </DrillLink>
-            ) : (
-              (r.name ?? r.label)
-            )}
-          </span>
-          <span className="tabular-nums">{formatCurrency(Number(r.value ?? r.balance ?? 0))}</span>
-        </div>
+        <LineItem key={`${r.category_id ?? r.name ?? i}-${i}`} r={r} drill={drill} />
       ))}
     </div>
   );
 }
 
-type BsLine = { id: string; label: string; balance: number };
+/** Where a balance-sheet line leads: the transactions behind its balance. */
+function BsDrillLink({
+  row,
+  to,
+  children,
+}: {
+  row: BsLine;
+  to: string;
+  children: React.ReactNode;
+}) {
+  if (row.kind === "ledger")
+    return (
+      <Link
+        to="/transactions"
+        search={{ ledger: row.id, to, open: true, label: row.label }}
+        title={`View the transactions behind “${row.label}”`}
+        className={DRILL_CLASS}
+      >
+        {children}
+        <DrillArrow />
+      </Link>
+    );
+  if (row.kind === "bank")
+    return (
+      <Link
+        to="/transactions"
+        search={{ account: row.id, to, label: row.label }}
+        title={`View the transactions on “${row.label}”`}
+        className={DRILL_CLASS}
+      >
+        {children}
+        <DrillArrow />
+      </Link>
+    );
+  return <>{children}</>;
+}
 
-function BsRows({ rows, indent = "pl-8" }: { rows: BsLine[]; indent?: string }) {
+function BsRows({ rows, to, indent = "pl-8" }: { rows: BsLine[]; to: string; indent?: string }) {
   if (!rows.length)
     return (
       <tr>
@@ -160,7 +270,11 @@ function BsRows({ rows, indent = "pl-8" }: { rows: BsLine[]; indent?: string }) 
     <>
       {rows.map((r) => (
         <tr key={r.id}>
-          <td className={`${indent} py-1 text-sm`}>{r.label}</td>
+          <td className={`${indent} py-1 text-sm`}>
+            <BsDrillLink row={r} to={to}>
+              {r.label}
+            </BsDrillLink>
+          </td>
           <td className="py-1 text-right text-sm tabular-nums">{formatCurrency(r.balance)}</td>
         </tr>
       ))}
@@ -206,6 +320,10 @@ function BalanceSheet({ bs, to }: { bs: AccountingData["balance_sheet"]; to: str
       <div className="mb-6 text-center">
         <h2 className="text-lg font-bold uppercase tracking-wide">Balance Sheet</h2>
         <p className="text-sm text-muted-foreground">As of {formatDate(to)}</p>
+        <p className="no-print mx-auto mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+          <MousePointerClick className="size-3.5" /> Click a bank or ledger account to see the
+          transactions behind its balance
+        </p>
       </div>
       <table className="w-full">
         <thead>
@@ -219,24 +337,24 @@ function BalanceSheet({ bs, to }: { bs: AccountingData["balance_sheet"]; to: str
         <tbody>
           <BsHeading>Assets</BsHeading>
           <BsHeading level={2}>Current Assets</BsHeading>
-          <BsRows rows={bs.current_assets} />
+          <BsRows rows={bs.current_assets} to={to} />
           <BsTotal label="Total Current Assets" value={bs.total_current_assets} />
           <BsHeading level={2}>Non-Current Assets</BsHeading>
-          <BsRows rows={bs.noncurrent_assets} />
+          <BsRows rows={bs.noncurrent_assets} to={to} />
           <BsTotal label="Total Non-Current Assets" value={bs.total_noncurrent_assets} />
           <BsTotal label="Total Assets" value={bs.total_assets} level={1} />
 
           <BsHeading>Liabilities and Stockholders' Equity</BsHeading>
           <BsHeading level={2}>Current Liabilities</BsHeading>
-          <BsRows rows={bs.current_liabilities} />
+          <BsRows rows={bs.current_liabilities} to={to} />
           <BsTotal label="Total Current Liabilities" value={bs.total_current_liabilities} />
           <BsHeading level={2}>Non-Current (Long-Term) Liabilities</BsHeading>
-          <BsRows rows={bs.noncurrent_liabilities} />
+          <BsRows rows={bs.noncurrent_liabilities} to={to} />
           <BsTotal label="Total Non-Current Liabilities" value={bs.total_noncurrent_liabilities} />
           <BsTotal label="Total Liabilities" value={bs.total_liabilities} level={1} />
 
           <BsHeading level={2}>Stockholders' Equity</BsHeading>
-          <BsRows rows={bs.equity} />
+          <BsRows rows={bs.equity} to={to} />
           <BsTotal label="Total Stockholders' Equity" value={bs.total_equity} level={1} />
 
           <tr>
@@ -446,6 +564,7 @@ function ComparisonStatement({
                     <DrillLink
                       drill={{ gaap: r.gaap, from, to, project }}
                       categoryId={r.categoryId}
+                      categoryIds={r.categoryIds}
                       label={r.label}
                     >
                       {r.label}
@@ -472,14 +591,15 @@ function ComparisonStatement({
 export function AccountingReports({ from, to }: { from: string; to: string }) {
   const fn = getAccountingReportsFn;
   const [projectId, setProjectId] = useState("all");
+  const [plSort, setPlSort] = useState<PlSort>("chart");
   const projects = useQuery({
     queryKey: ["projects"],
     queryFn: () => listProjectsFn({ data: undefined }),
   });
   const project = projectId === "all" ? undefined : projectId;
   const query = useQuery({
-    queryKey: ["accounting", from, to, project],
-    queryFn: () => fn({ data: { from, to, projectId: project } }),
+    queryKey: ["accounting", from, to, project, plSort],
+    queryFn: () => fn({ data: { from, to, projectId: project, plSort } }),
   });
   const d = query.data;
   const profile = useQuery({
@@ -491,8 +611,8 @@ export function AccountingReports({ from, to }: { from: string; to: string }) {
   const [compare, setCompare] = useState<CompareMode>("none");
   const prior = compare === "none" ? null : priorRange(from, to, compare);
   const priorQuery = useQuery({
-    queryKey: ["accounting", prior?.from, prior?.to, project],
-    queryFn: () => fn({ data: { from: prior!.from, to: prior!.to, projectId: project } }),
+    queryKey: ["accounting", prior?.from, prior?.to, project, plSort],
+    queryFn: () => fn({ data: { from: prior!.from, to: prior!.to, projectId: project, plSort } }),
     enabled: Boolean(prior),
   });
   const priorLabel = prior
@@ -527,6 +647,7 @@ export function AccountingReports({ from, to }: { from: string; to: string }) {
           <TabsTrigger value="cf">Cash flow</TabsTrigger>
           <TabsTrigger value="gl">General ledger</TabsTrigger>
           <TabsTrigger value="tb">Trial balance</TabsTrigger>
+          <TabsTrigger value="tax">Sales tax</TabsTrigger>
           <TabsTrigger value="ar">A/R aging</TabsTrigger>
           <TabsTrigger value="ap">A/P aging</TabsTrigger>
           <TabsTrigger value="detail">By account</TabsTrigger>
@@ -545,6 +666,18 @@ export function AccountingReports({ from, to }: { from: string; to: string }) {
                       {p.name}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            )}
+            {tab === "pl" && (
+              <Select value={plSort} onValueChange={(v) => setPlSort(v as PlSort)}>
+                <SelectTrigger className="h-8 w-44" aria-label="Sort lines">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="chart">Sort: category order</SelectItem>
+                  <SelectItem value="name">Sort: name A–Z</SelectItem>
+                  <SelectItem value="amount">Sort: largest amount</SelectItem>
                 </SelectContent>
               </Select>
             )}
@@ -780,12 +913,62 @@ export function AccountingReports({ from, to }: { from: string; to: string }) {
               </TableRow>
             </TableBody>
           </Table>
-          {Math.abs(d.trial_balance.total_debit - d.trial_balance.total_credit) > 0.005 && (
-            <p className="mt-4 text-xs text-muted-foreground">
-              Difference:{" "}
-              {formatCurrency(d.trial_balance.total_debit - d.trial_balance.total_credit)}.
-            </p>
-          )}
+          <p
+            className={`mt-4 text-xs font-medium ${d.trial_balance.balanced ? "text-income" : "text-destructive"}`}
+            role="status"
+          >
+            {d.trial_balance.balanced
+              ? "✓ Debits equal credits."
+              : `Out of balance: ${d.trial_balance.difference > 0 ? "debits exceed credits" : "credits exceed debits"} by ${formatCurrency(Math.abs(d.trial_balance.difference))}. Each transaction is recorded on one side only, so nothing offsets it yet.`}
+          </p>
+        </Statement>
+      </TabsContent>
+
+      <TabsContent value="tax">
+        <Statement
+          title="Sales Tax"
+          subtitle={`Collected and paid ${formatDate(from)} – ${formatDate(to)}`}
+        >
+          <div className="mb-4 grid gap-3 sm:grid-cols-3">
+            <TotalRow label="Collected" value={d.sales_tax.collected} strong={false} />
+            <TotalRow label="Paid to tax authority" value={d.sales_tax.remitted} strong={false} />
+            <TotalRow
+              label={`Sales tax payable at ${formatDate(to)}`}
+              value={d.sales_tax.balance_due}
+            />
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="text-right">Collected</TableHead>
+                <TableHead className="text-right">Paid</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {d.sales_tax.rows.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                    No sales tax activity in this period. Invoice tax from GoHighLevel and anything
+                    filed under “Sales Tax Payable” appears here.
+                  </TableCell>
+                </TableRow>
+              )}
+              {d.sales_tax.rows.map((r) => (
+                <TableRow key={r.id}>
+                  <TableCell className="whitespace-nowrap">{formatDate(r.date)}</TableCell>
+                  <TableCell className="max-w-72 truncate">{r.description}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {r.collected ? formatCurrency(r.collected) : "—"}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {r.remitted ? formatCurrency(r.remitted) : "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </Statement>
       </TabsContent>
 

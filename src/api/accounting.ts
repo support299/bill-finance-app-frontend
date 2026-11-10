@@ -1,22 +1,31 @@
 import { api, endpoint } from "./client";
 
+export type PlSort = "chart" | "name" | "amount";
+
 export interface AccountingRange {
+  plSort?: PlSort | undefined;
   /** Narrows the profit & loss to one project. */
   projectId?: string | undefined;
   from: string;
   to: string;
 }
 
-interface Line {
+export interface Line {
   name: string;
   value: number;
   /** Category behind a P&L line (null = uncategorized); absent on cash-flow lines. */
   category_id?: string | null;
+  /** Every category the line covers (itself plus sub-categories) — what its transactions are filed under. */
+  category_ids?: string[];
+  /** Sub-categories rolled into this P&L line. */
+  children?: Line[];
 }
-interface BsLine {
+export interface BsLine {
   id: string;
   label: string;
   balance: number;
+  /** What `id` refers to: a ledger account, a bank account (Plaid id) or the retained-earnings plug. */
+  kind?: "ledger" | "bank" | "retained";
 }
 interface AgingRow {
   id: string;
@@ -94,6 +103,15 @@ export interface AccountingReports {
     rows: { id: string; label: string; account_class: string; debit: number; credit: number }[];
     total_debit: number;
     total_credit: number;
+    difference: number;
+    balanced: boolean;
+  };
+  sales_tax: {
+    rows: { id: string; date: string; description: string; collected: number; remitted: number }[];
+    collected: number;
+    remitted: number;
+    /** Collected less remitted, everything up to the report date. */
+    balance_due: number;
   };
   ar_aging: Aging;
   ap_aging: Aging;
@@ -119,5 +137,6 @@ export const getAccountingReportsFn = endpoint(async (r: AccountingRange) =>
     from: r.from,
     to: r.to,
     project_id: r.projectId,
+    pl_sort: r.plSort,
   }),
 );

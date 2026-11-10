@@ -20,6 +20,8 @@ export interface Category {
   icon: string | null;
   is_system: boolean;
   parent_category?: string | null;
+  /** Position within its type on the P&L (lower first; 0 = after the seeded chart). */
+  sort_order?: number;
 }
 
 export type CategoryLite = Pick<Category, "id" | "name" | "type" | "color" | "icon">;
@@ -29,6 +31,8 @@ export interface Transaction {
   project: string | null;
   project_role: "deposit" | "equipment" | "labor" | "other" | null;
   reconciled: boolean;
+  /** Receipts/invoices attached (list endpoint only). */
+  attachment_count?: number;
   user_category_id: string | null;
   ledger_id: string | null;
   plaid_item_id: string | null;

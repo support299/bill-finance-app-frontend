@@ -95,3 +95,23 @@ export const reopenReconciliationFn = endpoint(async (d: { id: string }) =>
 export const deleteReconciliationFn = endpoint(async (d: { id: string }) =>
   api.delete(`/reconciliations/${d.id}/`),
 );
+
+export interface UnreconciledRow {
+  id: string;
+  date: string;
+  description: string;
+  amount: string;
+  delta: string;
+  /** Ticked in a reconciliation that is still open. */
+  in_progress: boolean;
+}
+
+export const unreconciledFn = endpoint(async (d: { accountId: string; to?: string | undefined }) =>
+  api.get<{
+    account_id: string;
+    reconciled_through: string | null;
+    count: number;
+    net: string;
+    transactions: UnreconciledRow[];
+  }>("/reconciliations/unreconciled/", { account_id: d.accountId, to: d.to }),
+);

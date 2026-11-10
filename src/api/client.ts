@@ -106,7 +106,8 @@ async function send(
   retry: boolean,
 ): Promise<Response> {
   const headers: Record<string, string> = { Accept: "application/json" };
-  if (opts.body !== undefined) headers["Content-Type"] = "application/json";
+  const isForm = typeof FormData !== "undefined" && opts.body instanceof FormData;
+  if (opts.body !== undefined && !isForm) headers["Content-Type"] = "application/json"; // a FormData body sets its own boundary
   const access = opts.anonymous ? null : getTokens()?.access;
   if (access) headers["Authorization"] = `Bearer ${access}`;
 
@@ -115,7 +116,9 @@ async function send(
     res = await fetch(buildUrl(path, opts.query), {
       method,
       headers,
-      ...(opts.body !== undefined ? { body: JSON.stringify(opts.body) } : {}),
+      ...(opts.body !== undefined
+        ? { body: isForm ? (opts.body as FormData) : JSON.stringify(opts.body) }
+        : {}),
     });
   } catch {
     throw new ApiError(
@@ -143,6 +146,13 @@ export async function request<T>(
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
+}
+
+/** Authenticated download (files are streamed through the API, so a plain link cannot carry the login). */
+export async function requestBlob(path: string): Promise<Blob> {
+  const res = await send("GET", path, {}, true);
+  if (!res.ok) throw await toApiError(res);
+  return res.blob();
 }
 
 export const api = {

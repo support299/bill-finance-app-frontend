@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { GAAP_TYPES, GAAP_TYPE_LABELS, type GaapType } from "@/api/gaap";
 import { cn } from "@/lib/utils";
 
-type Cat = { id: string; name: string; type: GaapType };
+import { orderWithChildren, type Cat } from "@/lib/category-order";
 
 /** Searchable category picker grouped by GAAP type; the current type's group is listed first. */
 export function CategoryCombobox({
@@ -57,7 +57,7 @@ export function CategoryCombobox({
               </CommandItem>
             </CommandGroup>
             {order.map((t) => {
-              const list = categories.filter((c) => c.type === t);
+              const list = orderWithChildren(categories.filter((c) => c.type === t));
               if (!list.length) return null;
               return (
                 <CommandGroup key={t} heading={GAAP_TYPE_LABELS[t]}>
@@ -73,7 +73,10 @@ export function CategoryCombobox({
                       <Check
                         className={cn("size-4", value === c.id ? "opacity-100" : "opacity-0")}
                       />{" "}
-                      {c.name}
+                      <span style={{ paddingLeft: c.depth * 16 }}>
+                        {c.depth ? "└ " : ""}
+                        {c.name}
+                      </span>
                     </CommandItem>
                   ))}
                 </CommandGroup>

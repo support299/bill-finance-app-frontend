@@ -115,7 +115,7 @@ export const assignLedgerFn = endpoint(async (d: { ids: string[]; ledgerId: stri
 );
 
 export interface LedgerEntryInput {
-  ledgerId: string;
+  ledgerId?: string | null | undefined;
   date: string;
   dueDate?: string | null | undefined;
   description: string;
@@ -124,10 +124,12 @@ export interface LedgerEntryInput {
   status?: TxStatus | undefined;
   accountingStatus?: AccountingStatus | null | undefined;
   categoryId?: string | null | undefined;
+  /** Liabilities only: "out" records money paid out (e.g. a sales tax payment). */
+  direction?: "in" | "out" | undefined;
 }
 
 const entryBody = (d: LedgerEntryInput) => ({
-  ledger_id: d.ledgerId,
+  ledger_id: d.ledgerId ?? null,
   date: d.date,
   due_date: d.dueDate || null,
   description: d.description,
@@ -136,11 +138,12 @@ const entryBody = (d: LedgerEntryInput) => ({
   status: d.status ?? "posted",
   accounting_status: d.accountingStatus ?? null,
   category_id: d.categoryId ?? null,
+  ...(d.direction ? { direction: d.direction } : {}),
 });
 
 export const createLedgerEntryFn = endpoint(async (d: LedgerEntryInput) => {
-  await api.post("/entries/", entryBody(d));
-  return { ok: true };
+  const r = await api.post<{ id: string }>("/entries/", entryBody(d));
+  return { ok: true, id: r.id };
 });
 
 export const updateLedgerEntryFn = endpoint(async (d: LedgerEntryInput & { id: string }) => {

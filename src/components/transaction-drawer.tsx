@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { AttachmentsPanel } from "@/components/attachments-panel";
+import { RulePreview } from "@/components/rule-preview";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Editable } from "@/components/editable";
@@ -122,6 +124,8 @@ export function TransactionDrawer({
             </a>
           )}
 
+          <AttachmentsPanel transactionId={transaction.id} />
+
           <Editable
             fallback={
               <p className="text-sm text-muted-foreground">
@@ -152,11 +156,28 @@ export function TransactionDrawer({
               </Select>
             </div>
 
+            {!pendingCategory && transaction.user_category_id && keyword && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setPendingCategory(
+                    categories.find((c) => c.id === transaction.user_category_id) ?? null,
+                  )
+                }
+              >
+                Create rule from this transaction
+              </Button>
+            )}
+
             {pendingCategory && keyword && (
               <div className="rounded-lg border border-primary/40 bg-accent/40 p-4">
                 <p className="text-sm font-medium">
                   Apply “{pendingCategory.name}” to future “{keyword}” transactions?
                 </p>
+                <div className="mt-3">
+                  <RulePreview keyword={keyword} categoryId={pendingCategory.id} />
+                </div>
                 <div className="mt-3 flex gap-2">
                   <Button
                     size="sm"

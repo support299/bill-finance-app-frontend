@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
-import { useState } from "react";
+import { Paperclip, Plus } from "lucide-react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { TransactionDrawer } from "@/components/transaction-drawer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Editable } from "@/components/editable";
@@ -40,7 +41,7 @@ import {
   listLedgersFn,
   updateLedgerTransactionFn,
 } from "@/api/ledgers";
-import { listTransactionsFn } from "@/api/transactions";
+import { listTransactionsFn, uploadAttachmentFn } from "@/api/transactions";
 import type { Transaction } from "@/api/types";
 import { formatCurrency, formatDate } from "@/lib/format";
 
@@ -89,6 +90,11 @@ function BillsPage() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<"open" | "paid">("open");
   const [recording, setRecording] = useState(false);
+  const [active, setActive] = useState<Transaction | null>(null);
+  const categories = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => listCategoriesFn({ data: undefined }),
+  });
 
   const bills = useQuery({
     queryKey: ["bills", tab],
@@ -182,7 +188,7 @@ function BillsPage() {
               </TableRow>
             )}
             {rows.map((t) => (
-              <TableRow key={t.id}>
+              <TableRow key={t.id} className="cursor-pointer" onClick={() => setActive(t)}>
                 <TableCell className="whitespace-nowrap">
                   <DueBadge due={t.due_date} />
                   {t.due_date && (
@@ -194,6 +200,12 @@ function BillsPage() {
                 </TableCell>
                 <TableCell className="font-medium">
                   {t.merchant_name ?? t.description ?? "—"}
+                  {(t.attachment_count ?? 0) > 0 && (
+                    <Paperclip
+                      className="ml-1 inline size-3 text-muted-foreground"
+                      aria-label={`${t.attachment_count} attached file(s)`}
+                    />
+                  )}
                 </TableCell>
                 <TableCell className="hidden text-muted-foreground md:table-cell">
                   {t.ledger_id ? (
@@ -201,6 +213,7 @@ function BillsPage() {
                       to="/ledgers/$ledgerId"
                       params={{ ledgerId: t.ledger_id }}
                       className="underline-offset-2 hover:underline"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       {ledgerLabel(t.ledger_id)}
                     </Link>
@@ -214,7 +227,7 @@ function BillsPage() {
                 <TableCell className="text-right font-medium tabular-nums">
                   {formatCurrency(Math.abs(Number(t.amount)), t.currency ?? "USD")}
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                   {tab === "open" && (
                     <Editable>
                       <Button
@@ -235,6 +248,12 @@ function BillsPage() {
       </div>
 
       <RecordBillDialog open={recording} onOpenChange={setRecording} />
+
+      <TransactionDrawer
+        transaction={active}
+        categories={categories.data?.categories ?? []}
+        onClose={() => setActive(null)}
+      />
     </div>
   );
 }
@@ -247,6 +266,7 @@ function RecordBillDialog({
   onOpenChange: (o: boolean) => void;
 }) {
   const queryClient = useQueryClient();
+  const file = useRef<HTMLInputElement>(null);
   const ledgers = useQuery({
     queryKey: ["ledgers-list"],
     queryFn: () => listLedgersFn({ data: undefined }),
@@ -289,7 +309,7 @@ function RecordBillDialog({
         target = created.id;
       }
       const category = expenseCategories.find((c) => c.id === categoryId);
-      await createLedgerEntryFn({
+      const created = await createLedgerEntryFn({
         data: {
           ledgerId: target,
           date,
@@ -302,9 +322,18 @@ function RecordBillDialog({
           categoryId: category?.id ?? null,
         },
       });
+      const attach = file.current?.files?.[0];
+      if (attach) {
+        try {
+          await uploadAttachmentFn({ data: { transactionId: created.id, file: attach } });
+        } catch (e) {
+          toast.error(`Bill saved, but the file was not attached: ${(e as Error).message}`);
+        }
+      }
     },
     onSuccess: () => {
       toast.success("Bill recorded.");
+      if (file.current) file.current.value = "";
       queryClient.invalidateQueries({ queryKey: ["bills"] });
       queryClient.invalidateQueries({ queryKey: ["ledgers-list"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
@@ -389,6 +418,14 @@ function RecordBillDialog({
               </SelectContent>
             </Select>
           </div>
+        </div>
+        <div>
+          <Label>Invoice or receipt (optional)</Label>
+          <Input
+            ref={file}
+            type="file"
+            accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.heic,.csv,.xlsx,.xls,.doc,.docx,.txt"
+          />
         </div>
         <DialogFooter>
           <Button disabled={!valid || record.isPending} onClick={() => record.mutate()}>

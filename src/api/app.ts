@@ -7,12 +7,23 @@ export const listCategoriesFn = endpoint(async (_: void) => ({
 }));
 
 export const upsertCategoryFn = endpoint(
-  async (d: { id?: string; name: string; type: string; color?: string; icon?: string }) => {
+  async (d: {
+    id?: string;
+    name: string;
+    type: string;
+    color?: string;
+    icon?: string;
+    /** Parent category (one level deep); null makes it top-level. */
+    parentId?: string | null;
+    sortOrder?: number;
+  }) => {
     const body = {
       name: d.name,
       type: d.type as GaapType,
       color: d.color ?? null,
       icon: d.icon ?? null,
+      ...(d.parentId !== undefined ? { parent_category: d.parentId } : {}),
+      ...(d.sortOrder !== undefined ? { sort_order: d.sortOrder } : {}),
     };
     const row = d.id
       ? await api.patch<Category>(`/categories/${d.id}/`, body)
@@ -20,6 +31,12 @@ export const upsertCategoryFn = endpoint(
     return { id: row.id };
   },
 );
+
+/** Saves this user's P&L order for sibling categories (same type and parent), first to last. */
+export const reorderCategoriesFn = endpoint(async (d: { ids: string[] }) => {
+  await api.post("/categories/reorder/", { ids: d.ids });
+  return { ok: true };
+});
 
 export const deleteCategoryFn = endpoint(async (d: { id: string }) => {
   await api.delete(`/categories/${d.id}/`);

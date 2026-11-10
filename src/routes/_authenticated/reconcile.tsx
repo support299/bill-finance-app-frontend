@@ -33,6 +33,7 @@ import {
   listReconciliationsFn,
   reopenReconciliationFn,
   startReconciliationFn,
+  unreconciledFn,
   updateReconciliationFn,
   type ReconciliationDetail,
   type ReconciliationSummary,
@@ -194,6 +195,8 @@ function Start() {
         )}
       </div>
 
+      {accountId && <Unreconciled accountId={accountId} />}
+
       <div className="surface overflow-x-auto p-5">
         <h2 className="mb-3 text-sm font-semibold">History</h2>
         <Table>
@@ -237,6 +240,64 @@ function Start() {
         </Table>
       </div>
     </>
+  );
+}
+
+// ------------------------------------------------------------------ unreconciled items
+/** Everything on the account that no completed reconciliation has verified yet. */
+function Unreconciled({ accountId }: { accountId: string }) {
+  const query = useQuery({
+    queryKey: ["unreconciled", accountId],
+    queryFn: () => unreconciledFn({ data: { accountId } }),
+  });
+  const d = query.data;
+  return (
+    <div className="surface overflow-x-auto p-5">
+      <h2 className="text-sm font-semibold">Unreconciled transactions</h2>
+      <p className="mb-3 text-xs text-muted-foreground">
+        {d?.reconciled_through
+          ? `Reconciled through ${formatDate(d.reconciled_through)}. `
+          : "This account has not been reconciled yet. "}
+        {d ? `${d.count} transaction${d.count === 1 ? "" : "s"} still to verify` : ""}
+        {d && d.count > 0 ? ` · net effect on the statement balance ${money(d.net)}` : ""}
+      </p>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Date</TableHead>
+            <TableHead>Description</TableHead>
+            <TableHead className="text-right">Amount</TableHead>
+            <TableHead>Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {query.isLoading && (
+            <TableRow>
+              <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
+                Loading…
+              </TableCell>
+            </TableRow>
+          )}
+          {d && d.count === 0 && (
+            <TableRow>
+              <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
+                Everything on this account is reconciled.
+              </TableCell>
+            </TableRow>
+          )}
+          {(d?.transactions ?? []).map((t) => (
+            <TableRow key={t.id}>
+              <TableCell className="whitespace-nowrap">{formatDate(t.date)}</TableCell>
+              <TableCell className="max-w-72 truncate">{t.description}</TableCell>
+              <TableCell className="text-right tabular-nums">{money(t.amount)}</TableCell>
+              <TableCell className="text-xs text-muted-foreground">
+                {t.in_progress ? "Ticked, reconciliation in progress" : "Not yet ticked"}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 

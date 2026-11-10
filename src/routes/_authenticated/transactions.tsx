@@ -7,12 +7,15 @@ import {
   ArrowUpDown,
   Download,
   EyeOff,
+  Paperclip,
+  Plus,
   Search,
   SlidersHorizontal,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
+import { AddTransactionDialog } from "@/components/add-transaction-dialog";
 import { TransactionDrawer } from "@/components/transaction-drawer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -78,6 +81,10 @@ export const Route = createFileRoute("/_authenticated/transactions")({
       ...(typeof s.from === "string" ? { from: s.from } : {}),
       ...(typeof s.to === "string" ? { to: s.to } : {}),
       ...(typeof s.category === "string" ? { category: s.category } : {}),
+      ...(typeof s.categories === "string" ? { categories: s.categories } : {}),
+      ...(typeof s.ledger === "string" ? { ledger: s.ledger } : {}),
+      ...(typeof s.account === "string" ? { account: s.account } : {}),
+      ...(s.open === true || s.open === "true" ? { open: true } : {}),
       ...(typeof s.project === "string" ? { project: s.project } : {}),
       ...(s.unlinked === true || s.unlinked === "true" ? { unlinked: true } : {}),
       ...(s.uncategorized === true || s.uncategorized === "true" ? { uncategorized: true } : {}),
@@ -92,6 +99,12 @@ export interface TransactionsSearch {
   from?: string;
   to?: string;
   category?: string;
+  /** Comma-separated category ids (a P&L line with its sub-categories). */
+  categories?: string;
+  /** Balance-sheet drill-down: a ledger account or a bank account, with open items only. */
+  ledger?: string;
+  account?: string;
+  open?: boolean;
   uncategorized?: boolean;
   unlinked?: boolean;
   project?: string;
@@ -106,7 +119,14 @@ function TransactionsPage() {
   const [filters, setFilters] = useState<TransactionFilters>({
     ...(drill.from ? { from: drill.from } : {}),
     ...(drill.to ? { to: drill.to } : {}),
-    ...(drill.category ? { categoryIds: [drill.category] } : {}),
+    ...(drill.categories
+      ? { categoryIds: drill.categories.split(",").filter(Boolean) }
+      : drill.category
+        ? { categoryIds: [drill.category] }
+        : {}),
+    ...(drill.ledger ? { ledgerIds: [drill.ledger], reportable: true } : {}),
+    ...(drill.account ? { accountIds: [drill.account] } : {}),
+    ...(drill.open ? { excludeSettled: true } : {}),
     ...(drill.uncategorized ? { uncategorized: true } : {}),
     ...(drill.unlinked ? { unlinked: true } : {}),
     ...(drill.project ? { projectIds: [drill.project] } : {}),
@@ -123,6 +143,7 @@ function TransactionsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [active, setActive] = useState<Transaction | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
   const list = listTransactionsFn;
   const exportFn = exportTransactionsFn;
@@ -335,6 +356,9 @@ function TransactionsPage() {
     setFilters((f) => {
       const {
         categoryIds: _c,
+        ledgerIds: _li,
+        accountIds: _ai,
+        excludeSettled: _es,
         uncategorized: _u,
         unlinked: _l,
         gaapType: _g,
@@ -350,7 +374,11 @@ function TransactionsPage() {
   return (
     <div className="space-y-5">
       {(drill.label || drill.unlinked) &&
-        (filters.categoryIds || filters.uncategorized || filters.unlinked) && (
+        (filters.categoryIds ||
+          filters.ledgerIds ||
+          filters.accountIds ||
+          filters.uncategorized ||
+          filters.unlinked) && (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/40 bg-accent px-4 py-2 text-sm">
             <span>
               {drill.unlinked ? (
@@ -385,6 +413,11 @@ function TransactionsPage() {
           <p className="text-sm text-muted-foreground">{total} transactions match your filters.</p>
         </div>
         <div className="flex gap-2">
+          <Editable>
+            <Button onClick={() => setAddOpen(true)}>
+              <Plus className="size-4" /> Add transaction
+            </Button>
+          </Editable>
           <Button variant="outline" onClick={() => setShowFilters((s) => !s)}>
             <SlidersHorizontal className="size-4" /> Filters
           </Button>
@@ -687,6 +720,12 @@ function TransactionsPage() {
                 <TableCell className="max-w-40 truncate font-medium">
                   {t.merchant_name ?? t.description ?? "—"}
                   {t.is_hidden && <EyeOff className="ml-1 inline size-3 text-muted-foreground" />}
+                  {(t.attachment_count ?? 0) > 0 && (
+                    <Paperclip
+                      className="ml-1 inline size-3 text-muted-foreground"
+                      aria-label={`${t.attachment_count} attached file(s)`}
+                    />
+                  )}
                 </TableCell>
                 <TableCell className="hidden max-w-60 truncate text-muted-foreground md:table-cell">
                   {t.description}
@@ -758,6 +797,8 @@ function TransactionsPage() {
           </Button>
         </div>
       </div>
+
+      <AddTransactionDialog open={addOpen} onOpenChange={setAddOpen} />
 
       <TransactionDrawer
         transaction={active}

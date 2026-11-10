@@ -1,4 +1,4 @@
-import { api, endpoint } from "./client";
+import { api, endpoint, requestBlob } from "./client";
 import type { GaapType, Paginated, Transaction } from "./types";
 
 export type TransactionSortKey =
@@ -18,6 +18,9 @@ export interface TransactionFilters {
   to?: string | undefined;
   accountIds?: string[] | undefined;
   categoryIds?: string[] | undefined;
+  ledgerIds?: string[] | undefined;
+  /** Leave out settled (received/paid) items: what a balance-sheet ledger line carries. */
+  excludeSettled?: boolean | undefined;
   uncategorized?: boolean | undefined;
   projectIds?: string[] | undefined;
   noProject?: boolean | undefined;
@@ -48,6 +51,8 @@ export function filterQuery(f: TransactionFilters = {}) {
     to: f.to,
     account_ids: f.accountIds,
     category_ids: f.categoryIds,
+    ledger_ids: f.ledgerIds,
+    exclude_settled: f.excludeSettled,
     uncategorized: f.uncategorized,
     project_ids: f.projectIds,
     no_project: f.noProject,
@@ -141,6 +146,34 @@ export const createRuleFn = endpoint(
   },
 );
 
+export interface RulePreview {
+  /** False for regex rules: they apply to new transactions only. */
+  previewable: boolean;
+  matching: number;
+  would_change: number;
+  sample: {
+    id: string;
+    date: string;
+    description: string;
+    amount: string;
+    current_category: string | null;
+  }[];
+}
+
+/** What a rule would change among existing transactions, before it is saved. */
+export const previewRuleFn = endpoint(
+  async (d: {
+    keyword: string;
+    matchType?: "contains" | "starts_with" | "exact" | "regex" | undefined;
+    categoryId?: string | null | undefined;
+  }) =>
+    api.post<RulePreview>("/rules/preview/", {
+      keyword: d.keyword,
+      match_type: d.matchType ?? "contains",
+      category_id: d.categoryId ?? null,
+    }),
+);
+
 export const recategorizeAllFn = endpoint(async (_: void) =>
   api.post<{ updated: number }>("/transactions/recategorize/", {}),
 );
@@ -171,3 +204,35 @@ export const bulkDeleteTransactionsFn = endpoint(
         : { ids: d.ids ?? [] },
     ),
 );
+
+/* ------------------------------ attachments ------------------------------ */
+export interface Attachment {
+  id: string;
+  name: string;
+  content_type: string;
+  size: number;
+  created_at: string;
+}
+
+export const listAttachmentsFn = endpoint(async (d: { transactionId: string }) =>
+  api.get<Attachment[]>(`/transactions/${d.transactionId}/attachments/`),
+);
+
+export const uploadAttachmentFn = endpoint(async (d: { transactionId: string; file: File }) => {
+  const form = new FormData();
+  form.append("file", d.file);
+  return api.post<Attachment>(`/transactions/${d.transactionId}/attachments/`, form);
+});
+
+export const deleteAttachmentFn = endpoint(async (d: { id: string }) => {
+  await api.delete(`/attachments/${d.id}/`);
+  return { ok: true };
+});
+
+/** Opens the file in a new tab (fetched with the login, then shown from a temporary blob URL). */
+export async function openAttachment(id: string): Promise<void> {
+  const blob = await requestBlob(`/attachments/${id}/`);
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank", "noopener");
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}

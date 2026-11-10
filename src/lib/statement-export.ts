@@ -13,6 +13,8 @@ type Row =
       prior?: number;
       /** P&L lines only: what to open in Transactions. */
       categoryId?: string | null;
+      /** Every category the line covers (itself and its sub-categories). */
+      categoryIds?: string[];
       gaap?: string;
     }
   | { kind: "total"; label: string; value: number; prior?: number }
@@ -57,7 +59,12 @@ export function changeOf(value: number, prior: number) {
 const NAVY: [number, number, number] = [34, 36, 78];
 const ORANGE: [number, number, number] = [242, 140, 40];
 
-type Lines = { name: string; value: number; category_id?: string | null }[];
+type Lines = {
+  name: string;
+  value: number;
+  category_id?: string | null;
+  category_ids?: string[];
+}[];
 
 function section(
   rows: Row[],
@@ -85,6 +92,9 @@ function section(
             categoryId:
               (lines.find((l) => l.name === n) ?? prior?.lines.find((l) => l.name === n))
                 ?.category_id ?? null,
+            categoryIds:
+              (lines.find((l) => l.name === n) ?? prior?.lines.find((l) => l.name === n))
+                ?.category_ids ?? [],
           }
         : {}),
     });

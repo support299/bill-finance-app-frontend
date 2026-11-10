@@ -3,6 +3,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { RulePreview } from "@/components/rule-preview";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Editable } from "@/components/editable";
@@ -155,6 +156,9 @@ export function RulesPanel() {
             <Plus className="size-4" /> Create rule
           </Button>
         </Editable>
+        <div className="w-full">
+          <RulePreview keyword={keyword} matchType={matchType} categoryId={categoryId || null} />
+        </div>
       </div>
 
       <div className="surface overflow-x-auto">
