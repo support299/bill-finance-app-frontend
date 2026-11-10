@@ -196,7 +196,7 @@ function LedgerDetailPage() {
       date: (t.transaction_date ?? "").slice(0, 10),
       dueDate: (t.due_date ?? "") as string,
       description: t.merchant_name ?? t.description ?? "",
-      amount: String(Math.abs(Number(t.amount))),
+      amount: String(txType(t) === "equity" ? Number(t.amount) : Math.abs(Number(t.amount))),
       type: txType(t),
       status: (t.status ?? (t.pending ? "pending" : "posted")) as (typeof STATUSES)[number],
       accountingStatus: (t.accounting_status ?? "") as AccountingStatus | "",
