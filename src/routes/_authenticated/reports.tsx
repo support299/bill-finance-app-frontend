@@ -45,7 +45,7 @@ import {
 } from "@/lib/format";
 import { getReportDataFn } from "@/api/reports";
 
-type ReportsSearch = { from?: string; to?: string; tab?: string };
+type ReportsSearch = { from?: string; to?: string; tab?: string; sub?: string };
 
 export const Route = createFileRoute("/_authenticated/reports")({
   // "Back to report" from Transactions restores the period and the tab the user drilled down from.
@@ -53,16 +53,17 @@ export const Route = createFileRoute("/_authenticated/reports")({
     ...(typeof raw["from"] === "string" ? { from: raw["from"] } : {}),
     ...(typeof raw["to"] === "string" ? { to: raw["to"] } : {}),
     ...(typeof raw["tab"] === "string" ? { tab: raw["tab"] } : {}),
+    ...(typeof raw["sub"] === "string" ? { sub: raw["sub"] } : {}),
   }),
   head: () => ({
     meta: [
-      { title: "Financial reports — ImaxAccounting" },
+      { title: "Financial reports — iMax Profit Tracker" },
       {
         name: "description",
         content:
           "Income vs expense, cash-flow trends, category breakdowns and top merchants for any period.",
       },
-      { property: "og:title", content: "Financial reports — ImaxAccounting" },
+      { property: "og:title", content: "Financial reports — iMax Profit Tracker" },
       {
         property: "og:description",
         content: "Detailed cash-flow analytics built from your synced bank data.",
@@ -176,7 +177,7 @@ function ReportsPage() {
 
       <Tabs defaultValue={search.tab ?? "cashflow"}>
         <TabsList>
-          <TabsTrigger value="cashflow">Cash flow</TabsTrigger>
+          <TabsTrigger value="cashflow">Cash Flow</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>
           <TabsTrigger value="merchants">Merchants</TabsTrigger>
           <TabsTrigger value="largest">Largest expenses</TabsTrigger>
@@ -261,7 +262,11 @@ function ReportsPage() {
         </TabsContent>
 
         <TabsContent value="accounting">
-          <AccountingReports from={range.from} to={range.to} />
+          <AccountingReports
+            from={range.from}
+            to={range.to}
+            {...(search.sub ? { initialTab: search.sub } : {})}
+          />
         </TabsContent>
 
         <TabsContent value="categories" className="grid gap-5 lg:grid-cols-2">

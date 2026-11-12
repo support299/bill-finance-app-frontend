@@ -193,7 +193,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             className="flex shrink-0 items-center gap-2 font-display text-lg font-bold"
           >
             <img src="/logo.png" alt="" className="size-9 object-contain" />
-            <span className="hidden sm:inline">ImaxAccounting</span>
+            <span className="hidden sm:inline">iMax Profit Tracker</span>
           </Link>
 
           {/* Inline nav only on very wide screens; it scrolls inside itself rather than widening the page. */}

@@ -55,12 +55,12 @@ import { LedgerTags } from "@/components/ledger-tags";
 export const Route = createFileRoute("/_authenticated/ledgers/$ledgerId")({
   head: () => ({
     meta: [
-      { title: "Ledger account — ImaxAccounting" },
+      { title: "Ledger account — iMax Profit Tracker" },
       {
         name: "description",
         content: "Ledger account details, recorded entries and every linked bank transaction.",
       },
-      { property: "og:title", content: "Ledger account — ImaxAccounting" },
+      { property: "og:title", content: "Ledger account — iMax Profit Tracker" },
       {
         property: "og:description",
         content: "Contact details, manual entries and transaction history for a ledger account.",

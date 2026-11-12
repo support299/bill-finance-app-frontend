@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Plus, Trash2 } from "lucide-react";
 import { z } from "zod";
 
-import { GhlHeaderButtons, GhlLinkPanel } from "@/components/ghl-connect";
+import { GhlLinkPanel } from "@/components/ghl-connect";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -48,13 +48,13 @@ export const Route = createFileRoute("/_authenticated/ledgers/")({
   validateSearch: z.object({ ghl_link: z.string().optional() }),
   head: () => ({
     meta: [
-      { title: "Ledgers — ImaxAccounting" },
+      { title: "Ledgers — iMax Profit Tracker" },
       {
         name: "description",
         content:
           "Create ledger accounts with contact details and track every transaction filed against them.",
       },
-      { property: "og:title", content: "Ledgers — ImaxAccounting" },
+      { property: "og:title", content: "Ledgers — iMax Profit Tracker" },
       {
         property: "og:description",
         content: "Ledger accounts with contact details and linked bank transactions.",
@@ -154,7 +154,9 @@ function LedgersPage() {
         </div>
         <div className="flex gap-2">
           <Editable>
-            <GhlHeaderButtons />
+            <Badge variant="secondary" className="self-center py-1">
+              iMax
+            </Badge>
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button>

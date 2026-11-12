@@ -48,7 +48,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 export const Route = createFileRoute("/_authenticated/bills")({
   head: () => ({
     meta: [
-      { title: "Bills — ImaxAccounting" },
+      { title: "Bills — iMax Profit Tracker" },
       {
         name: "description",
         content:

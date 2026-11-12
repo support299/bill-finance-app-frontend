@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "ImaxAccounting — Bank-connected income, expense & cash-flow analytics" },
+      { title: "iMax Profit Tracker — Bank-connected income, expense & cash-flow analytics" },
       {
         name: "description",
         content:
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/")({
       },
       {
         property: "og:title",
-        content: "ImaxAccounting — Automated bank accounting & cash-flow reports",
+        content: "iMax Profit Tracker — Automated bank accounting & cash-flow reports",
       },
       {
         property: "og:description",
@@ -178,7 +178,7 @@ function Landing() {
           <span className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">
             i
           </span>
-          ImaxAccounting
+          iMax Profit Tracker
         </div>
         <Button asChild variant="ghost">
           <Link to="/auth">Sign in</Link>
@@ -195,7 +195,7 @@ function Landing() {
               Every transaction, categorized. Every dollar, accounted for.
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-              ImaxAccounting connects your bank accounts, imports and continuously syncs
+              iMax Profit Tracker connects your bank accounts, imports and continuously syncs
               transactions, and turns them into income, expense and cash-flow reports you can
               actually act on.
             </p>
@@ -228,7 +228,7 @@ function Landing() {
       </main>
 
       <footer className="border-t border-border py-8 text-center text-sm text-muted-foreground">
-        ImaxAccounting — automated bank accounting and cash-flow analytics.
+        iMax Profit Tracker — automated bank accounting and cash-flow analytics.
       </footer>
     </div>
   );

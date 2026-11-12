@@ -12,7 +12,7 @@ const searchSchema = z.object({ uid: z.string().optional(), token: z.string().op
 
 export const Route = createFileRoute("/reset-password")({
   validateSearch: searchSchema,
-  head: () => ({ meta: [{ title: "Reset password — ImaxAccounting" }] }),
+  head: () => ({ meta: [{ title: "Reset password — iMax Profit Tracker" }] }),
   component: ResetPasswordPage,
 });
 

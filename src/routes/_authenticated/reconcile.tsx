@@ -48,7 +48,7 @@ export const Route = createFileRoute("/_authenticated/reconcile")({
     typeof raw["id"] === "string" ? { id: raw["id"] } : {},
   head: () => ({
     meta: [
-      { title: "Reconcile — ImaxAccounting" },
+      { title: "Reconcile — iMax Profit Tracker" },
       {
         name: "description",
         content: "Check your books against a bank or credit-card statement.",

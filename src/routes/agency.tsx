@@ -36,7 +36,7 @@ export const Route = createFileRoute("/agency")({
     ...(typeof raw["company"] === "string" ? { company: raw["company"] } : {}),
     ...(typeof raw["token"] === "string" ? { token: raw["token"] } : {}),
   }),
-  head: () => ({ meta: [{ title: "Agency clients — ImaxAccounting" }] }),
+  head: () => ({ meta: [{ title: "Agency clients — iMax Profit Tracker" }] }),
   component: AgencyPage,
 });
 
@@ -153,7 +153,8 @@ function Clients({ onOpened }: { onOpened: () => void }) {
       <div>
         <h1 className="text-2xl font-bold">Your clients</h1>
         <p className="text-sm text-muted-foreground">
-          Every sub-account that installed ImaxAccounting. Opening one is read-only and is recorded.
+          Every sub-account that installed iMax Profit Tracker. Opening one is read-only and is
+          recorded.
         </p>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">

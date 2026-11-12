@@ -26,6 +26,8 @@ export interface TransactionFilters {
   noProject?: boolean | undefined;
   /** Imported from a bank connection that has since been removed. */
   unlinked?: boolean | undefined;
+  /** Receipts and invoices: only rows with none attached, or only rows with at least one. */
+  receipts?: "all" | "missing" | "attached" | undefined;
   gaapType?: GaapType | undefined;
   /** Only rows the financial statements count (posted, not void). */
   reportable?: boolean | undefined;
@@ -57,6 +59,7 @@ export function filterQuery(f: TransactionFilters = {}) {
     project_ids: f.projectIds,
     no_project: f.noProject,
     unlinked: f.unlinked,
+    receipts: f.receipts === "all" ? undefined : f.receipts,
     gaap_type: f.gaapType,
     reportable: f.reportable,
     direction: f.direction,
@@ -179,6 +182,11 @@ export const recategorizeAllFn = endpoint(async (_: void) =>
 );
 
 /** Pairs money moved between your own accounts (e.g. a card payment) and marks both sides Internal Transfer. */
+/** Marks two picked transactions (one out, one in, different accounts) as one transfer. */
+export const linkTransferFn = endpoint(async (d: { ids: [string, string] }) =>
+  api.post<{ updated: number }>("/transactions/link-transfer/", { ids: d.ids }),
+);
+
 export const detectTransfersFn = endpoint(async (_: void) =>
   api.post<{ updated: number }>("/transactions/detect-transfers/", {}),
 );

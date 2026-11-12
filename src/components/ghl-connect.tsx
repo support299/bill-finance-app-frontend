@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Link2, Plus, RefreshCw, Unlink } from "lucide-react";
+import { Link2, Plus, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -10,7 +10,6 @@ import {
   listGhlLinksFn,
   startGhlConnect,
   syncGhlInvoicesFn,
-  unlinkGhlLocationFn,
   type GhlLocationSummary,
 } from "@/api/ghl";
 import { Badge } from "@/components/ui/badge";
@@ -107,15 +106,6 @@ export function GhlLinkPanel({ code }: { code: string | undefined }) {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const unlink = useMutation({
-    mutationFn: (locationId: string) => unlinkGhlLocationFn({ data: { locationId } }),
-    onSuccess: () => {
-      toast.success("Location disconnected. Your data stays in this workspace.");
-      queryClient.invalidateQueries({ queryKey: LINKS_KEY });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
   const choices = options.data?.locations ?? [];
   const single = options.data && !options.data.choose ? choices[0] : undefined;
   const selectable = choices.filter((l) => l.link_state !== "elsewhere");
@@ -124,24 +114,9 @@ export function GhlLinkPanel({ code }: { code: string | undefined }) {
     <>
       {(links.data?.locations.length ?? 0) > 0 && (
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-muted-foreground">GoHighLevel:</span>
           {links.data!.locations.map((l: GhlLocationSummary) => (
             <Badge key={l.location_id} variant="secondary" className="gap-1.5 py-1">
               {l.name ?? l.location_id}
-              <button
-                type="button"
-                aria-label={`Disconnect ${l.name ?? l.location_id}`}
-                className="text-muted-foreground hover:text-foreground"
-                onClick={() => {
-                  if (
-                    window.confirm(`Disconnect ${l.name ?? l.location_id} from this workspace?`)
-                  ) {
-                    unlink.mutate(l.location_id);
-                  }
-                }}
-              >
-                <Unlink className="size-3" />
-              </button>
             </Badge>
           ))}
         </div>

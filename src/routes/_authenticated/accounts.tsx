@@ -39,12 +39,12 @@ import { listTransactionsFn } from "@/api/transactions";
 export const Route = createFileRoute("/_authenticated/accounts")({
   head: () => ({
     meta: [
-      { title: "Bank Accounts — ImaxAccounting" },
+      { title: "Bank Accounts — iMax Profit Tracker" },
       {
         name: "description",
         content: "Manage connected institutions, balances, sync status and reconnections.",
       },
-      { property: "og:title", content: "Bank Accounts — ImaxAccounting" },
+      { property: "og:title", content: "Bank Accounts — iMax Profit Tracker" },
       {
         property: "og:description",
         content: "All your connected banks and account balances in one place.",

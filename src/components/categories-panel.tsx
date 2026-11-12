@@ -117,7 +117,7 @@ export function CategoriesPanel() {
           <h2 className="text-lg font-semibold">Categories</h2>
           <p className="text-sm text-muted-foreground">
             US GAAP chart of accounts for small businesses, plus any custom categories you create.
-            Use the arrows to set the order your Profit &amp; loss lists them in.
+            Use the arrows to set the order your Profit Report lists them in.
           </p>
         </div>
         <Editable>

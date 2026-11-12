@@ -49,7 +49,7 @@ export const Route = createFileRoute("/_authenticated/projects")({
     typeof raw["id"] === "string" ? { id: raw["id"] } : {},
   head: () => ({
     meta: [
-      { title: "Projects — ImaxAccounting" },
+      { title: "Projects — iMax Profit Tracker" },
       {
         name: "description",
         content: "Track the deposit, equipment, labor and profit of every job.",

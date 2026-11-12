@@ -222,28 +222,24 @@ describe("app smoke", () => {
 describe("connect a GoHighLevel location from the workspace", () => {
   const signIn = () => setTokens({ access: "ACCESS", refresh: "REFRESH" });
 
-  it("shows a Connect GoHighLevel button (not Sync) while nothing is linked, and starts the install", async () => {
+  it("shows an iMax label instead of the GoHighLevel buttons on the Ledgers page", async () => {
     mockNetwork();
     signIn();
-    const go = vi.spyOn(ghl.navigation, "go").mockImplementation(() => {});
     renderApp("/ledgers");
-    const button = await screen.findByRole("button", { name: /Connect GoHighLevel/ });
+    expect(await screen.findByText("iMax")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Connect GoHighLevel/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Sync invoices/ })).not.toBeInTheDocument();
-    await userEvent.click(button);
-    expect(go).toHaveBeenCalledWith(expect.stringMatching(/\/api\/v1\/workspace\/install\/$/));
-    go.mockRestore();
+    expect(screen.queryByRole("button", { name: /Add location/ })).not.toBeInTheDocument();
   });
 
-  it("shows Sync invoices, Add location and the linked location once connected", async () => {
+  it("lists the linked location without a disconnect button once connected", async () => {
     mockNetwork();
     routes["GET /workspace/links/"] = () => json(200, { locations: [LOC] });
     signIn();
     renderApp("/ledgers");
-    expect(await screen.findByRole("button", { name: /Sync invoices/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Add location/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Connect GoHighLevel/ })).not.toBeInTheDocument();
     expect(await screen.findByText("Acme Plumbing")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Disconnect Acme Plumbing/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Disconnect/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Sync invoices/ })).not.toBeInTheDocument();
   });
 
   it("asks for confirmation after GoHighLevel redirects back, then links the location", async () => {

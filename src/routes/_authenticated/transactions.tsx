@@ -50,6 +50,7 @@ import {
 } from "@/api/projects";
 import {
   bulkCategorizeFn,
+  linkTransferFn,
   bulkDeleteTransactionsFn,
   exportTransactionsFn,
   listTransactionsFn,
@@ -60,12 +61,12 @@ import {
 export const Route = createFileRoute("/_authenticated/transactions")({
   head: () => ({
     meta: [
-      { title: "Bank Transactions — ImaxAccounting" },
+      { title: "Bank Transactions — iMax Profit Tracker" },
       {
         name: "description",
         content: "Search, filter, categorize and export every imported bank transaction.",
       },
-      { property: "og:title", content: "Bank Transactions — ImaxAccounting" },
+      { property: "og:title", content: "Bank Transactions — iMax Profit Tracker" },
       {
         property: "og:description",
         content: "Every synced bank transaction in one searchable table.",
@@ -90,6 +91,8 @@ export const Route = createFileRoute("/_authenticated/transactions")({
       ...(s.uncategorized === true || s.uncategorized === "true" ? { uncategorized: true } : {}),
       ...(typeof s.gaap === "string" ? { gaap: s.gaap } : {}),
       ...(typeof s.label === "string" ? { label: s.label } : {}),
+      ...(typeof s.rfrom === "string" ? { rfrom: s.rfrom } : {}),
+      ...(typeof s.rsub === "string" ? { rsub: s.rsub } : {}),
     };
   },
   component: TransactionsPage,
@@ -110,6 +113,9 @@ export interface TransactionsSearch {
   project?: string;
   gaap?: string;
   label?: string;
+  /** Where "Back to report" returns: the report period start and the accounting tab (balance-sheet drill-downs). */
+  rfrom?: string;
+  rsub?: string;
 }
 
 function TransactionsPage() {
@@ -187,6 +193,16 @@ function TransactionsPage() {
       toast.success(`${r.updated} transactions recategorized`);
       setSelected([]);
       setAllMatching(false);
+      queryClient.invalidateQueries();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const linkTransfer = useMutation({
+    mutationFn: () => linkTransferFn({ data: { ids: [selected[0]!, selected[1]!] } }),
+    onSuccess: () => {
+      toast.success("Linked as an internal transfer");
+      setSelected([]);
       queryClient.invalidateQueries();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -391,11 +407,19 @@ function TransactionsPage() {
               {drill.from && drill.to && ` · ${formatDate(drill.from)} – ${formatDate(drill.to)}`}
             </span>
             <span className="flex items-center gap-1">
-              {drill.gaap && drill.from && drill.to && (
+              {((drill.gaap && drill.from && drill.to) ||
+                (drill.rsub && drill.rfrom && drill.to)) && (
                 <Button asChild variant="outline" size="sm">
                   <Link
                     to="/reports"
-                    search={{ from: drill.from, to: drill.to, tab: "accounting" }}
+                    search={{
+                      ...((drill.rfrom ?? drill.from)
+                        ? { from: (drill.rfrom ?? drill.from)! }
+                        : {}),
+                      ...(drill.to ? { to: drill.to } : {}),
+                      tab: "accounting",
+                      ...(drill.rsub ? { sub: drill.rsub } : {}),
+                    }}
                   >
                     ← Back to report
                   </Link>
@@ -493,6 +517,25 @@ function TransactionsPage() {
               </SelectContent>
             </Select>
             <Select
+              value={filters.receipts ?? "all"}
+              onValueChange={(v) =>
+                setFilters((f) => ({
+                  ...f,
+                  receipts: v as NonNullable<TransactionFilters["receipts"]>,
+                  page: 1,
+                }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Receipts" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All receipts</SelectItem>
+                <SelectItem value="missing">Missing receipt</SelectItem>
+                <SelectItem value="attached">Has receipt</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
               value={filters.accountIds?.[0] ?? "all"}
               onValueChange={(v) =>
                 setFilters((f) => ({ ...f, accountIds: v === "all" ? [] : [v], page: 1 }))
@@ -577,6 +620,17 @@ function TransactionsPage() {
                 onClick={() => setAllMatching(true)}
               >
                 Select all {total} matching
+              </Button>
+            )}
+            {!allMatching && selected.length === 2 && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={linkTransfer.isPending}
+                title="Pick one payment out and one payment in, on two different accounts"
+                onClick={() => linkTransfer.mutate()}
+              >
+                Link as transfer
               </Button>
             )}
             <Select onValueChange={applyCategory}>

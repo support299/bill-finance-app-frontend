@@ -225,17 +225,19 @@ function LineList({ rows, drill }: { rows: LineRow[]; drill?: Drill | undefined 
 function BsDrillLink({
   row,
   to,
+  from,
   children,
 }: {
   row: BsLine;
   to: string;
+  from: string;
   children: React.ReactNode;
 }) {
   if (row.kind === "ledger")
     return (
       <Link
         to="/transactions"
-        search={{ ledger: row.id, to, open: true, label: row.label }}
+        search={{ ledger: row.id, to, open: true, label: row.label, rfrom: from, rsub: "bs" }}
         title={`View the transactions behind “${row.label}”`}
         className={DRILL_CLASS}
       >
@@ -247,7 +249,7 @@ function BsDrillLink({
     return (
       <Link
         to="/transactions"
-        search={{ account: row.id, to, label: row.label }}
+        search={{ account: row.id, to, label: row.label, rfrom: from, rsub: "bs" }}
         title={`View the transactions on “${row.label}”`}
         className={DRILL_CLASS}
       >
@@ -258,7 +260,17 @@ function BsDrillLink({
   return <>{children}</>;
 }
 
-function BsRows({ rows, to, indent = "pl-8" }: { rows: BsLine[]; to: string; indent?: string }) {
+function BsRows({
+  rows,
+  to,
+  from,
+  indent = "pl-8",
+}: {
+  rows: BsLine[];
+  to: string;
+  from: string;
+  indent?: string;
+}) {
   if (!rows.length)
     return (
       <tr>
@@ -271,7 +283,7 @@ function BsRows({ rows, to, indent = "pl-8" }: { rows: BsLine[]; to: string; ind
       {rows.map((r) => (
         <tr key={r.id}>
           <td className={`${indent} py-1 text-sm`}>
-            <BsDrillLink row={r} to={to}>
+            <BsDrillLink row={r} to={to} from={from}>
               {r.label}
             </BsDrillLink>
           </td>
@@ -314,11 +326,19 @@ function BsTotal({ label, value, level = 2 }: { label: string; value: number; le
   );
 }
 
-function BalanceSheet({ bs, to }: { bs: AccountingData["balance_sheet"]; to: string }) {
+function BalanceSheet({
+  bs,
+  to,
+  from,
+}: {
+  bs: AccountingData["balance_sheet"];
+  to: string;
+  from: string;
+}) {
   return (
     <div className="surface mx-auto max-w-3xl p-8">
       <div className="mb-6 text-center">
-        <h2 className="text-lg font-bold uppercase tracking-wide">Balance Sheet</h2>
+        <h2 className="text-lg font-bold uppercase tracking-wide">Financial Snapshot</h2>
         <p className="text-sm text-muted-foreground">As of {formatDate(to)}</p>
         <p className="no-print mx-auto mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
           <MousePointerClick className="size-3.5" /> Click a bank or ledger account to see the
@@ -337,24 +357,24 @@ function BalanceSheet({ bs, to }: { bs: AccountingData["balance_sheet"]; to: str
         <tbody>
           <BsHeading>Assets</BsHeading>
           <BsHeading level={2}>Current Assets</BsHeading>
-          <BsRows rows={bs.current_assets} to={to} />
+          <BsRows rows={bs.current_assets} to={to} from={from} />
           <BsTotal label="Total Current Assets" value={bs.total_current_assets} />
           <BsHeading level={2}>Non-Current Assets</BsHeading>
-          <BsRows rows={bs.noncurrent_assets} to={to} />
+          <BsRows rows={bs.noncurrent_assets} to={to} from={from} />
           <BsTotal label="Total Non-Current Assets" value={bs.total_noncurrent_assets} />
           <BsTotal label="Total Assets" value={bs.total_assets} level={1} />
 
           <BsHeading>Liabilities and Stockholders' Equity</BsHeading>
           <BsHeading level={2}>Current Liabilities</BsHeading>
-          <BsRows rows={bs.current_liabilities} to={to} />
+          <BsRows rows={bs.current_liabilities} to={to} from={from} />
           <BsTotal label="Total Current Liabilities" value={bs.total_current_liabilities} />
           <BsHeading level={2}>Non-Current (Long-Term) Liabilities</BsHeading>
-          <BsRows rows={bs.noncurrent_liabilities} to={to} />
+          <BsRows rows={bs.noncurrent_liabilities} to={to} from={from} />
           <BsTotal label="Total Non-Current Liabilities" value={bs.total_noncurrent_liabilities} />
           <BsTotal label="Total Liabilities" value={bs.total_liabilities} level={1} />
 
           <BsHeading level={2}>Stockholders' Equity</BsHeading>
-          <BsRows rows={bs.equity} to={to} />
+          <BsRows rows={bs.equity} to={to} from={from} />
           <BsTotal label="Total Stockholders' Equity" value={bs.total_equity} level={1} />
 
           <tr>
@@ -588,7 +608,15 @@ function ComparisonStatement({
   );
 }
 
-export function AccountingReports({ from, to }: { from: string; to: string }) {
+export function AccountingReports({
+  from,
+  to,
+  initialTab,
+}: {
+  from: string;
+  to: string;
+  initialTab?: string;
+}) {
   const fn = getAccountingReportsFn;
   const [projectId, setProjectId] = useState("all");
   const [plSort, setPlSort] = useState<PlSort>("chart");
@@ -607,7 +635,7 @@ export function AccountingReports({ from, to }: { from: string; to: string }) {
     queryFn: () => getProfileFn({ data: undefined }),
   });
   const businessName = profile.data?.profile?.business_name ?? "";
-  const [tab, setTab] = useState("pl");
+  const [tab, setTab] = useState(initialTab ?? "pl");
   const [compare, setCompare] = useState<CompareMode>("none");
   const prior = compare === "none" ? null : priorRange(from, to, compare);
   const priorQuery = useQuery({
@@ -642,12 +670,13 @@ export function AccountingReports({ from, to }: { from: string; to: string }) {
     <Tabs value={tab} onValueChange={setTab} className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <TabsList className="flex-wrap">
-          <TabsTrigger value="pl">Profit &amp; loss</TabsTrigger>
-          <TabsTrigger value="bs">Balance sheet</TabsTrigger>
-          <TabsTrigger value="cf">Cash flow</TabsTrigger>
-          <TabsTrigger value="gl">General ledger</TabsTrigger>
-          <TabsTrigger value="tb">Trial balance</TabsTrigger>
-          <TabsTrigger value="tax">Sales tax</TabsTrigger>
+          <TabsTrigger value="pl">Profit Report</TabsTrigger>
+          <TabsTrigger value="bs">Financial Snapshot</TabsTrigger>
+          <TabsTrigger value="cf">Cash Flow</TabsTrigger>
+          <TabsTrigger value="gl">Transaction History</TabsTrigger>
+          <TabsTrigger value="tb">Transaction Review</TabsTrigger>
+          <TabsTrigger value="tax">Sales Tax</TabsTrigger>
+          <TabsTrigger value="transfers">Internal transfers</TabsTrigger>
           <TabsTrigger value="ar">A/R aging</TabsTrigger>
           <TabsTrigger value="ap">A/P aging</TabsTrigger>
           <TabsTrigger value="detail">By account</TabsTrigger>
@@ -719,7 +748,7 @@ export function AccountingReports({ from, to }: { from: string; to: string }) {
         )}
         {!plComparing && (
           <Statement
-            title="Profit & Loss Statement"
+            title="Profit Report"
             subtitle={`For the period ${formatDate(from)} – ${formatDate(to)}`}
             hint="Click any line item to see the transactions behind it"
           >
@@ -772,12 +801,12 @@ export function AccountingReports({ from, to }: { from: string; to: string }) {
       </TabsContent>
 
       <TabsContent value="bs">
-        <BalanceSheet bs={d.balance_sheet} to={to} />
+        <BalanceSheet bs={d.balance_sheet} to={to} from={from} />
       </TabsContent>
 
       <TabsContent value="cf">
         <Statement
-          title="Cash Flow Statement"
+          title="Cash Flow"
           subtitle={`For the period ${formatDate(from)} – ${formatDate(to)}`}
         >
           <StatementSection
@@ -868,7 +897,7 @@ export function AccountingReports({ from, to }: { from: string; to: string }) {
       </TabsContent>
 
       <TabsContent value="tb">
-        <Statement title="Trial Balance" subtitle={`As of ${formatDate(to)}`}>
+        <Statement title="Transaction Review" subtitle={`As of ${formatDate(to)}`}>
           <Table>
             <TableHeader>
               <TableRow>
@@ -937,11 +966,43 @@ export function AccountingReports({ from, to }: { from: string; to: string }) {
               value={d.sales_tax.balance_due}
             />
           </div>
+          {d.sales_tax.by_name.length > 0 && (
+            <div className="mb-6">
+              <h3 className="mb-2 text-sm font-semibold">By tax name</h3>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tax</TableHead>
+                    <TableHead className="text-right">Collected</TableHead>
+                    <TableHead className="text-right">Paid</TableHead>
+                    <TableHead className="text-right">Owed</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {d.sales_tax.by_name.map((t) => (
+                    <TableRow key={t.name}>
+                      <TableCell className="font-medium">{t.name}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatCurrency(t.collected)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatCurrency(t.remitted)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatCurrency(t.balance)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
                 <TableHead>Description</TableHead>
+                <TableHead>Tax</TableHead>
                 <TableHead className="text-right">Collected</TableHead>
                 <TableHead className="text-right">Paid</TableHead>
               </TableRow>
@@ -949,7 +1010,7 @@ export function AccountingReports({ from, to }: { from: string; to: string }) {
             <TableBody>
               {d.sales_tax.rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
                     No sales tax activity in this period. Invoice tax from GoHighLevel and anything
                     filed under “Sales Tax Payable” appears here.
                   </TableCell>
@@ -959,11 +1020,58 @@ export function AccountingReports({ from, to }: { from: string; to: string }) {
                 <TableRow key={r.id}>
                   <TableCell className="whitespace-nowrap">{formatDate(r.date)}</TableCell>
                   <TableCell className="max-w-72 truncate">{r.description}</TableCell>
+                  <TableCell className="whitespace-nowrap">{r.tax_name}</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {r.collected ? formatCurrency(r.collected) : "—"}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {r.remitted ? formatCurrency(r.remitted) : "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Statement>
+      </TabsContent>
+
+      <TabsContent value="transfers">
+        <Statement
+          title="Internal Transfers"
+          subtitle={`Money moved between your own accounts, ${formatDate(from)} – ${formatDate(to)}`}
+        >
+          <div className="mb-4 grid gap-3 sm:grid-cols-3">
+            <TotalRow label="Money out" value={d.internal_transfers.money_out} strong={false} />
+            <TotalRow label="Money in" value={d.internal_transfers.money_in} strong={false} />
+            <TotalRow label="Difference" value={d.internal_transfers.difference} />
+          </div>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Both sides of a transfer are listed. A difference of zero means every transfer has its
+            matching side; otherwise one side is missing or outside this period.
+          </p>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Account</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {d.internal_transfers.rows.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                    No internal transfers in this period.
+                  </TableCell>
+                </TableRow>
+              )}
+              {d.internal_transfers.rows.map((r) => (
+                <TableRow key={r.id}>
+                  <TableCell className="whitespace-nowrap">{formatDate(r.date)}</TableCell>
+                  <TableCell className="whitespace-nowrap">{r.account}</TableCell>
+                  <TableCell className="max-w-72 truncate">{r.description}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatCurrency(r.amount)}
                   </TableCell>
                 </TableRow>
               ))}

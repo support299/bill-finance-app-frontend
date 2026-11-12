@@ -24,7 +24,7 @@ import { useAccess } from "@/hooks/use-access";
 import { relativeTime } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/users")({
-  head: () => ({ meta: [{ title: "Users — ImaxAccounting" }] }),
+  head: () => ({ meta: [{ title: "Users — iMax Profit Tracker" }] }),
   component: UsersPage,
 });
 

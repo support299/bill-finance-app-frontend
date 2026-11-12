@@ -25,13 +25,13 @@ export const Route = createFileRoute("/auth")({
   validateSearch: searchSchema,
   head: () => ({
     meta: [
-      { title: "Sign in — ImaxAccounting" },
+      { title: "Sign in — iMax Profit Tracker" },
       {
         name: "description",
         content:
-          "Sign in or create your ImaxAccounting account to connect banks and track cash flow.",
+          "Sign in or create your iMax Profit Tracker account to connect banks and track cash flow.",
       },
-      { property: "og:title", content: "Sign in — ImaxAccounting" },
+      { property: "og:title", content: "Sign in — iMax Profit Tracker" },
       { property: "og:description", content: "Access your bank-connected accounting dashboard." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -112,7 +112,7 @@ function AuthPage() {
           className="mb-6 flex items-center justify-center gap-2 font-display text-xl font-bold"
         >
           <img src="/logo.png" alt="" className="size-12 object-contain" />
-          ImaxAccounting
+          iMax Profit Tracker
         </Link>
 
         <div className="surface p-6">

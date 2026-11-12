@@ -181,7 +181,7 @@ export function buildStatement(
       ...(pp ? { prior: pp.net_profit } : {}),
     });
     return {
-      title: "Profit & Loss Statement",
+      title: "Profit Report",
       subtitle: period,
       slug: "profit-and-loss",
       rows,
@@ -213,7 +213,7 @@ export function buildStatement(
     );
     rows.push({ kind: "grand", label: "Net Change in Cash", value: c.net_change });
     rows.push({ kind: "line", label: "Cash and Cash Equivalents, Ending", value: c.closing_cash });
-    return { title: "Cash Flow Statement", subtitle: period, slug: "cash-flow", rows };
+    return { title: "Cash Flow", subtitle: period, slug: "cash-flow", rows };
   }
   const b = d.balance_sheet;
   const lines = (r: { label: string; balance: number }[]) =>
@@ -261,7 +261,7 @@ export function buildStatement(
     value: b.total_liabilities + b.total_equity,
   });
   return {
-    title: "Balance Sheet",
+    title: "Financial Snapshot",
     subtitle: `As of ${formatDate(to)}`,
     slug: "balance-sheet",
     rows,

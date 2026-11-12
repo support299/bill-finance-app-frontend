@@ -32,13 +32,13 @@ export const Route = createFileRoute("/_authenticated/settings")({
   validateSearch: settingsSearchSchema,
   head: () => ({
     meta: [
-      { title: "Settings — ImaxAccounting" },
+      { title: "Settings — iMax Profit Tracker" },
       {
         name: "description",
         content:
           "Manage your profile, categories, categorization rules, sync history and security.",
       },
-      { property: "og:title", content: "Settings — ImaxAccounting" },
+      { property: "og:title", content: "Settings — iMax Profit Tracker" },
       {
         property: "og:description",
         content: "Profile, categories, rules, security and synchronization settings.",

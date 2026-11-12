@@ -43,13 +43,13 @@ import { getDashboardDataFn, getReportDataFn } from "@/api/reports";
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
-      { title: "Dashboard — ImaxAccounting" },
+      { title: "Dashboard — iMax Profit Tracker" },
       {
         name: "description",
         content:
           "Income, expenses, net cash flow and spending breakdowns across your connected accounts.",
       },
-      { property: "og:title", content: "Dashboard — ImaxAccounting" },
+      { property: "og:title", content: "Dashboard — iMax Profit Tracker" },
       { property: "og:description", content: "Your live income, expense and cash-flow overview." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

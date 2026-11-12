@@ -24,7 +24,7 @@ import {
 import { formatDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/activity")({
-  head: () => ({ meta: [{ title: "Activity — ImaxAccounting" }] }),
+  head: () => ({ meta: [{ title: "Activity — iMax Profit Tracker" }] }),
   component: ActivityPage,
 });
 
