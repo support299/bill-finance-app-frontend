@@ -4,7 +4,9 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { AttachmentsPanel } from "@/components/attachments-panel";
+import { BooksEntryPanel } from "@/components/books-entry-panel";
 import { RulePreview } from "@/components/rule-preview";
+import { SplitPanel } from "@/components/split-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Editable } from "@/components/editable";
@@ -125,6 +127,19 @@ export function TransactionDrawer({
           )}
 
           <AttachmentsPanel transactionId={transaction.id} />
+
+          <BooksEntryPanel transactionId={transaction.id} />
+
+          <SplitPanel
+            transactionId={transaction.id}
+            amount={Number(transaction.amount)}
+            categories={categories}
+            splittable={
+              transaction.source !== "ghl" &&
+              !transaction.is_transfer &&
+              rowGaapType(transaction) !== "transfer"
+            }
+          />
 
           <Editable
             fallback={

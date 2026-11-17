@@ -24,8 +24,8 @@ export interface BsLine {
   id: string;
   label: string;
   balance: number;
-  /** What `id` refers to: a ledger account, a bank account (Plaid id) or the retained-earnings plug. */
-  kind?: "ledger" | "bank" | "retained" | "sales_tax";
+  /** What `id` refers to: a ledger account, a bank account (Plaid id), the retained-earnings plug, or money collected through GoHighLevel. */
+  kind?: "ledger" | "bank" | "retained" | "sales_tax" | "ghl_clearing";
 }
 interface AgingRow {
   id: string;
@@ -37,6 +37,14 @@ interface AgingRow {
 interface Aging {
   rows: AgingRow[];
   totals: { buckets: Record<string, number>; total: number };
+}
+
+/** Is the balance sheet right, not only balanced? Present when the sheet is built from the double-entry books. */
+export interface BooksCheck {
+  all_ok: boolean;
+  checks: { id: string; title: string; status: "ok" | "look"; detail: string }[];
+  banks: { account: string; books: number; bank: number; difference: number; ok: boolean }[];
+  openings: { account: string; amount: number; large: boolean }[];
 }
 
 export interface AccountingReports {
@@ -58,6 +66,8 @@ export interface AccountingReports {
     total_expenses: number;
     net_profit: number;
   };
+  /** Null when the single-entry sheet is shown (no journal entries yet). */
+  books_check: BooksCheck | null;
   balance_sheet: {
     current_assets: BsLine[];
     noncurrent_assets: BsLine[];
@@ -155,4 +165,45 @@ export const getAccountingReportsFn = endpoint(async (r: AccountingRange) =>
     project_id: r.projectId,
     pl_sort: r.plSort,
   }),
+);
+
+/* ------------------------------ the books (read-only) ------------------------------ */
+/** One line of the entry a transaction was recorded as. Amounts arrive as decimal strings. */
+export interface BooksEntryLine {
+  account: string;
+  code: string;
+  kind: "asset" | "liability" | "equity" | "income" | "expense";
+  debit: string;
+  credit: string;
+  project: string | null;
+  ledger: string | null;
+}
+export interface BooksEntry {
+  posted: boolean;
+  /** Why a transaction is not in the books (when `posted` is false). */
+  reason?: string;
+  date?: string;
+  memo?: string | null;
+  lines: BooksEntryLine[];
+  total_debit?: string;
+  total_credit?: string;
+}
+export interface ChartAccount {
+  id: string;
+  code: string;
+  name: string;
+  kind: BooksEntryLine["kind"];
+  /** In the account's usual direction (assets and expenses: debits less credits; the rest: credits less debits). */
+  balance: string;
+  lines: number;
+  built_in: boolean;
+  bank_account: boolean;
+  active: boolean;
+}
+
+export const getBooksEntryFn = endpoint(async (d: { transactionId: string }) =>
+  api.get<BooksEntry>(`/transactions/${d.transactionId}/entry/`),
+);
+export const getChartOfAccountsFn = endpoint(async (_: void) =>
+  api.get<{ accounts: ChartAccount[] }>("/chart-of-accounts/"),
 );

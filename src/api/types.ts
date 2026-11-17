@@ -33,6 +33,8 @@ export interface Transaction {
   reconciled: boolean;
   /** Receipts/invoices attached (list endpoint only). */
   attachment_count?: number;
+  /** Parts the transaction is split into (list endpoint only; 0 = not split). */
+  split_count?: number;
   user_category_id: string | null;
   ledger_id: string | null;
   plaid_item_id: string | null;

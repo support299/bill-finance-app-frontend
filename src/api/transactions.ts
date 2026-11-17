@@ -244,3 +244,47 @@ export async function openAttachment(id: string): Promise<void> {
   window.open(url, "_blank", "noopener");
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
+
+/* ------------------------------ split payments ------------------------------ */
+/** One part of a split transaction. `amount` is signed like the transaction (negative = money out). */
+export interface SplitLine {
+  amount: string;
+  reference: string;
+  category_id: string | null;
+  project_id: string | null;
+  project_role: "deposit" | "equipment" | "labor" | "other" | null;
+  ledger_id: string | null;
+}
+export interface SplitData {
+  amount: string;
+  /** Saved lines, with the names the screen shows. */
+  lines: (SplitLine & {
+    id: string;
+    category: string | null;
+    project: string | null;
+    ledger: string | null;
+  })[];
+  total: string;
+  /** Transaction amount less the lines: zero when they add up. */
+  difference: string;
+}
+export interface SplitStatementRead {
+  lines: SplitLine[];
+  problems: { line: number; reason: string }[];
+  total: string;
+  difference: string;
+}
+
+export const getSplitsFn = endpoint(async (d: { transactionId: string }) =>
+  api.get<SplitData>(`/transactions/${d.transactionId}/splits/`),
+);
+
+/** Saves the lines as the whole split. An empty list removes the split. */
+export const saveSplitsFn = endpoint(async (d: { transactionId: string; lines: SplitLine[] }) =>
+  api.put<SplitData>(`/transactions/${d.transactionId}/splits/`, { lines: d.lines }),
+);
+
+/** Reads a statement (CSV or text pasted from a spreadsheet) into proposed lines. Nothing is saved. */
+export const readSplitStatementFn = endpoint(async (d: { transactionId: string; text: string }) =>
+  api.post<SplitStatementRead>(`/transactions/${d.transactionId}/splits/read/`, { text: d.text }),
+);

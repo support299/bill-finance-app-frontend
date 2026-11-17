@@ -16,6 +16,8 @@ export const ACCOUNT_CLASS_LABELS: Record<string, string> = {
   current_liability: "Current Liabilities",
   noncurrent_liability: "Non-Current (Long-Term) Liabilities",
   equity: "Stockholders' Equity",
+  income: "Income",
+  expense: "Expenses",
 };
 
 export const ACCOUNTING_STATUSES = [

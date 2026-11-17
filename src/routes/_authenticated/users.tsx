@@ -78,9 +78,9 @@ function UsersPage() {
       <div>
         <h1 className="text-2xl font-bold">Users</h1>
         <p className="text-sm text-muted-foreground">
-          Who can open {access.location?.name ?? "this sub-account"}&apos;s accounting. Access
-          follows each person&apos;s GoHighLevel role (agency staff administer, account admins edit,
-          other account users have no access) unless you set it here.
+          Who can open {access.location?.name ?? "this account"}&apos;s accounting. Access follows
+          each person&apos;s role (agency staff administer, account admins edit, other account users
+          have no access) unless you set it here.
         </p>
       </div>
 
@@ -98,7 +98,7 @@ function UsersPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Person</TableHead>
-              <TableHead>GoHighLevel role</TableHead>
+              <TableHead>Role</TableHead>
               <TableHead>Access</TableHead>
               <TableHead className="hidden md:table-cell">Last opened</TableHead>
               <TableHead className="hidden lg:table-cell">Set by</TableHead>

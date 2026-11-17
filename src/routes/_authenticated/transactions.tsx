@@ -8,6 +8,7 @@ import {
   Download,
   EyeOff,
   Paperclip,
+  Scissors,
   Plus,
   Search,
   SlidersHorizontal,
@@ -774,6 +775,12 @@ function TransactionsPage() {
                 <TableCell className="max-w-40 truncate font-medium">
                   {t.merchant_name ?? t.description ?? "—"}
                   {t.is_hidden && <EyeOff className="ml-1 inline size-3 text-muted-foreground" />}
+                  {(t.split_count ?? 0) > 0 && (
+                    <Scissors
+                      className="ml-1 inline size-3 text-muted-foreground"
+                      aria-label={`Split into ${t.split_count} lines`}
+                    />
+                  )}
                   {(t.attachment_count ?? 0) > 0 && (
                     <Paperclip
                       className="ml-1 inline size-3 text-muted-foreground"

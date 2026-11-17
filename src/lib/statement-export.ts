@@ -31,14 +31,18 @@ export interface StatementModel {
   priorTo?: string;
 }
 
-export type CompareMode = "none" | "year" | "period";
+export type CompareMode = "none" | "year" | "period" | "custom";
 
 const DAY = 86_400_000;
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const utc = (s: string) => new Date(`${s}T00:00:00Z`);
 
 /** The earlier range to compare against: same dates a year ago, or the equally long range just before. */
-export function priorRange(from: string, to: string, mode: Exclude<CompareMode, "none">) {
+export function priorRange(
+  from: string,
+  to: string,
+  mode: Exclude<CompareMode, "none" | "custom">,
+) {
   const f = utc(from);
   const t = utc(to);
   if (mode === "year") {

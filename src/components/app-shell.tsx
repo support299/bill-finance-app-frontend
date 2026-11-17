@@ -162,8 +162,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       {support && (
         <div className="no-print flex flex-wrap items-center justify-between gap-2 bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
           <span>
-            Viewing {support.clientName ?? "a client"} · read-only support session. Nothing here can
-            be changed.
+            {support.readOnly
+              ? `Viewing ${support.clientName ?? "a client"} · read-only support session. Nothing here can be changed.`
+              : `Support session · you are working in ${support.clientName ?? "a client"}'s books. Your changes are recorded under your name.`}
           </span>
           <Button size="sm" variant="secondary" onClick={backToClients}>
             ← Back to clients

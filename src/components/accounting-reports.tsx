@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import {
+  AlertTriangle,
   ArrowUpRight,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   Download,
@@ -31,6 +33,8 @@ import {
 } from "@/lib/statement-export";
 
 import { Badge } from "@/components/ui/badge";
+import { ChartOfAccounts } from "@/components/chart-of-accounts";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -43,6 +47,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   getAccountingReportsFn,
   type AccountingReports as AccountingData,
+  type BooksCheck,
   type BsLine,
   type PlSort,
 } from "@/api/accounting";
@@ -323,6 +328,66 @@ function BsTotal({ label, value, level = 2 }: { label: string; value: number; le
       <td className={`${cls} text-sm`}>{label}</td>
       <td className={`${cls} text-right text-sm tabular-nums`}>{formatCurrency(value)}</td>
     </tr>
+  );
+}
+
+function BooksHealth({ check }: { check: BooksCheck }) {
+  const looks = check.checks.filter((c) => c.status === "look").length;
+  return (
+    <div className="no-print surface mx-auto mt-4 max-w-3xl p-6">
+      <div className="mb-3 flex items-center gap-2">
+        {check.all_ok ? (
+          <CheckCircle2 className="size-5 text-emerald-600" />
+        ) : (
+          <AlertTriangle className="size-5 text-amber-600" />
+        )}
+        <h3 className="text-sm font-bold uppercase tracking-wide">Books health check</h3>
+        <span className="text-xs text-muted-foreground">
+          {check.all_ok
+            ? "Everything lines up."
+            : `${looks} thing${looks === 1 ? "" : "s"} to look at. The sheet always balances; these show whether it is right.`}
+        </span>
+      </div>
+      <ul className="space-y-2">
+        {check.checks.map((c) => (
+          <li key={c.id} className="flex items-start gap-2 text-sm">
+            {c.status === "ok" ? (
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+            ) : (
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+            )}
+            <span>
+              <span className="font-medium">{c.title}.</span>{" "}
+              <span className="text-muted-foreground">{c.detail}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      {check.banks.some((b) => !b.ok) && (
+        <table className="mt-4 w-full text-xs">
+          <thead>
+            <tr className="text-left text-muted-foreground">
+              <th className="pb-1 font-semibold">Account that differs</th>
+              <th className="pb-1 text-right font-semibold">Our books</th>
+              <th className="pb-1 text-right font-semibold">Bank says</th>
+              <th className="pb-1 text-right font-semibold">Difference</th>
+            </tr>
+          </thead>
+          <tbody>
+            {check.banks
+              .filter((b) => !b.ok)
+              .map((b) => (
+                <tr key={b.account} className="border-t">
+                  <td className="py-1">{b.account}</td>
+                  <td className="py-1 text-right tabular-nums">{formatCurrency(b.books)}</td>
+                  <td className="py-1 text-right tabular-nums">{formatCurrency(b.bank)}</td>
+                  <td className="py-1 text-right tabular-nums">{formatCurrency(b.difference)}</td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }
 
@@ -637,7 +702,19 @@ export function AccountingReports({
   const businessName = profile.data?.profile?.business_name ?? "";
   const [tab, setTab] = useState(initialTab ?? "pl");
   const [compare, setCompare] = useState<CompareMode>("none");
-  const prior = compare === "none" ? null : priorRange(from, to, compare);
+  // "custom" lets the user pick any dates to compare with (a different year, a different quarter, ...)
+  const [customRange, setCustomRange] = useState({ from: "", to: "" });
+  const customValid = Boolean(
+    customRange.from && customRange.to && customRange.from <= customRange.to,
+  );
+  const prior =
+    compare === "none"
+      ? null
+      : compare === "custom"
+        ? customValid
+          ? customRange
+          : null
+        : priorRange(from, to, compare);
   const priorQuery = useQuery({
     queryKey: ["accounting", prior?.from, prior?.to, project, plSort],
     queryFn: () => fn({ data: { from: prior!.from, to: prior!.to, projectId: project, plSort } }),
@@ -646,7 +723,9 @@ export function AccountingReports({
   const priorLabel = prior
     ? compare === "year"
       ? `Prior year (${formatDate(prior.from)} – ${formatDate(prior.to)})`
-      : `Prior period (${formatDate(prior.from)} – ${formatDate(prior.to)})`
+      : compare === "custom"
+        ? `Comparison (${formatDate(prior.from)} – ${formatDate(prior.to)})`
+        : `Prior period (${formatDate(prior.from)} – ${formatDate(prior.to)})`
     : "";
   const plComparing = tab === "pl" && Boolean(priorQuery.data);
   const modelFor = (kind: StatementKind) =>
@@ -680,6 +759,7 @@ export function AccountingReports({
           <TabsTrigger value="ar">A/R aging</TabsTrigger>
           <TabsTrigger value="ap">A/P aging</TabsTrigger>
           <TabsTrigger value="detail">By account</TabsTrigger>
+          <TabsTrigger value="chart">Chart of accounts</TabsTrigger>
         </TabsList>
         {exportKind && (
           <div className="no-print flex flex-wrap items-center gap-2">
@@ -711,16 +791,51 @@ export function AccountingReports({
               </Select>
             )}
             {tab === "pl" && (
-              <Select value={compare} onValueChange={(v) => setCompare(v as CompareMode)}>
-                <SelectTrigger className="h-8 w-44">
-                  <SelectValue placeholder="Compare" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No comparison</SelectItem>
-                  <SelectItem value="year">Compare: last year</SelectItem>
-                  <SelectItem value="period">Compare: previous period</SelectItem>
-                </SelectContent>
-              </Select>
+              <>
+                <Select
+                  value={compare}
+                  onValueChange={(v) => {
+                    setCompare(v as CompareMode);
+                    if (v === "custom" && !customRange.from) {
+                      setCustomRange(priorRange(from, to, "period")); // start from the previous period, then adjust
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-44">
+                    <SelectValue placeholder="Compare" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No comparison</SelectItem>
+                    <SelectItem value="year">Compare: last year</SelectItem>
+                    <SelectItem value="period">Compare: previous period</SelectItem>
+                    <SelectItem value="custom">Compare: choose dates</SelectItem>
+                  </SelectContent>
+                </Select>
+                {compare === "custom" && (
+                  <>
+                    <Input
+                      type="date"
+                      className="h-8 w-36"
+                      aria-label="Comparison start date"
+                      value={customRange.from}
+                      onChange={(e) => setCustomRange({ ...customRange, from: e.target.value })}
+                    />
+                    <span className="text-muted-foreground">to</span>
+                    <Input
+                      type="date"
+                      className="h-8 w-36"
+                      aria-label="Comparison end date"
+                      value={customRange.to}
+                      onChange={(e) => setCustomRange({ ...customRange, to: e.target.value })}
+                    />
+                    {!customValid && (
+                      <span className="text-xs text-destructive">
+                        Pick a start date that is not after the end date.
+                      </span>
+                    )}
+                  </>
+                )}
+              </>
             )}
             <Button
               size="sm"
@@ -801,7 +916,10 @@ export function AccountingReports({
       </TabsContent>
 
       <TabsContent value="bs">
-        <BalanceSheet bs={d.balance_sheet} to={to} from={from} />
+        <>
+          <BalanceSheet bs={d.balance_sheet} to={to} from={from} />
+          {d.books_check && <BooksHealth check={d.books_check} />}
+        </>
       </TabsContent>
 
       <TabsContent value="cf">
@@ -1094,6 +1212,10 @@ export function AccountingReports({
           title="A/P aging"
           subtitle="Transactions explicitly marked Accounts Payable."
         />
+      </TabsContent>
+
+      <TabsContent value="chart">
+        <ChartOfAccounts />
       </TabsContent>
 
       <TabsContent value="detail" className="space-y-5">

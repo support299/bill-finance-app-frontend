@@ -77,17 +77,17 @@ function claims(token: string | undefined): Record<string, unknown> | null {
   }
 }
 
-/** Set while an agency admin is looking at a client's books: the session is read-only and expires. */
-export function supportSession(): { clientName: string | null } | null {
+/** Set while an agency admin has a client open: the session expires, and is look-only when the server says so. */
+export function supportSession(): { clientName: string | null; readOnly: boolean } | null {
   const c = claims(getTokens()?.access);
-  if (!c?.["support_readonly"]) return null;
+  if (!c?.["support_exp"]) return null;
   let name = clientMemory;
   try {
     name = window.sessionStorage.getItem(CLIENT_KEY) ?? name;
   } catch {
     /* in-memory fallback */
   }
-  return { clientName: name };
+  return { clientName: name, readOnly: Boolean(c["support_readonly"]) };
 }
 
 /** Keeps the agency's own tokens while a client is open, so "Back to clients" needs no new sign-in. */
