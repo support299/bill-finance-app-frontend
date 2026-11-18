@@ -29,6 +29,12 @@ export interface TransactionFilters {
   /** Receipts and invoices: only rows with none attached, or only rows with at least one. */
   receipts?: "all" | "missing" | "attached" | undefined;
   gaapType?: GaapType | undefined;
+  /** Transfers whose other side is missing (what "Transfers in transit" holds). */
+  transferUnmatched?: boolean | undefined;
+  /** Receivable or payable rows not tied to a named customer or vendor. */
+  booksUnassigned?: "receivable" | "payable" | undefined;
+  /** GoHighLevel payments, fees and refunds not yet matched to a bank deposit. */
+  ghlInTransit?: boolean | undefined;
   /** Only rows the financial statements count (posted, not void). */
   reportable?: boolean | undefined;
   direction?: "all" | "income" | "expense" | "transfer" | undefined;
@@ -62,6 +68,9 @@ export function filterQuery(f: TransactionFilters = {}) {
     receipts: f.receipts === "all" ? undefined : f.receipts,
     gaap_type: f.gaapType,
     reportable: f.reportable,
+    transfer_unmatched: f.transferUnmatched,
+    ghl_in_transit: f.ghlInTransit,
+    books_unassigned: f.booksUnassigned,
     direction: f.direction,
     status: f.status,
     min_amount: f.minAmount,

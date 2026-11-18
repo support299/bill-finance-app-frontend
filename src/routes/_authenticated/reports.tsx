@@ -92,6 +92,8 @@ function ReportsPage() {
   const [preset, setPreset] = useState<RangePreset>(fromLink ? "custom" : "last_6_months");
   const [custom, setCustom] = useState({ from: search.from ?? "", to: search.to ?? "" });
   const [includeTransfers, setIncludeTransfers] = useState(false);
+  // The page-level Export is the monthly summary; the Accounting tab has its own exports, so it is hidden there.
+  const [mainTab, setMainTab] = useState(search.tab ?? "cashflow");
 
   const range = useMemo(
     () => resolveRange(preset, custom.from && custom.to ? custom : undefined),
@@ -128,23 +130,25 @@ function ReportsPage() {
           <Button variant="outline" size="sm" onClick={() => setIncludeTransfers((v) => !v)}>
             {includeTransfers ? "Excluding" : "Including"} transfers
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              downloadCsv(
-                `imaxaccounting-report-${range.from}-to-${range.to}.csv`,
-                series.map((s) => ({
-                  period: s.period,
-                  income: s.income.toFixed(2),
-                  expenses: s.expenses.toFixed(2),
-                  net: s.net.toFixed(2),
-                })),
-              )
-            }
-          >
-            <Download className="size-4" /> Export
-          </Button>
+          {mainTab !== "accounting" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                downloadCsv(
+                  `imaxaccounting-report-${range.from}-to-${range.to}.csv`,
+                  series.map((s) => ({
+                    period: s.period,
+                    income: s.income.toFixed(2),
+                    expenses: s.expenses.toFixed(2),
+                    net: s.net.toFixed(2),
+                  })),
+                )
+              }
+            >
+              <Download className="size-4" /> Export
+            </Button>
+          )}
         </div>
       </div>
 
@@ -175,7 +179,7 @@ function ReportsPage() {
         />
       </div>
 
-      <Tabs defaultValue={search.tab ?? "cashflow"}>
+      <Tabs value={mainTab} onValueChange={setMainTab}>
         <TabsList>
           <TabsTrigger value="cashflow">Cash Flow</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>

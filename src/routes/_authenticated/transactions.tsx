@@ -94,6 +94,12 @@ export const Route = createFileRoute("/_authenticated/transactions")({
       ...(typeof s.label === "string" ? { label: s.label } : {}),
       ...(typeof s.rfrom === "string" ? { rfrom: s.rfrom } : {}),
       ...(typeof s.rsub === "string" ? { rsub: s.rsub } : {}),
+      ...(typeof s.rto === "string" ? { rto: s.rto } : {}),
+      ...(s.transit === "transfers" || s.transit === "ghl" ? { transit: s.transit } : {}),
+      ...(typeof s.tx === "string" ? { tx: s.tx } : {}),
+      ...(s.unassigned === "receivable" || s.unassigned === "payable"
+        ? { unassigned: s.unassigned }
+        : {}),
     };
   },
   component: TransactionsPage,
@@ -116,7 +122,15 @@ export interface TransactionsSearch {
   label?: string;
   /** Where "Back to report" returns: the report period start and the accounting tab (balance-sheet drill-downs). */
   rfrom?: string;
+  /** Report period end, when it differs from this page's own end date. */
+  rto?: string;
   rsub?: string;
+  /** Money the books are still holding: transfers without a partner, or GoHighLevel money not yet in a bank. */
+  transit?: "transfers" | "ghl";
+  /** Receivable or payable rows not tied to a named customer or vendor. */
+  unassigned?: "receivable" | "payable";
+  /** Open this transaction once the list has loaded. */
+  tx?: string;
 }
 
 function TransactionsPage() {
@@ -133,6 +147,9 @@ function TransactionsPage() {
         : {}),
     ...(drill.ledger ? { ledgerIds: [drill.ledger], reportable: true } : {}),
     ...(drill.account ? { accountIds: [drill.account] } : {}),
+    ...(drill.transit === "transfers" ? { transferUnmatched: true } : {}),
+    ...(drill.transit === "ghl" ? { ghlInTransit: true } : {}),
+    ...(drill.unassigned ? { booksUnassigned: drill.unassigned } : {}),
     ...(drill.open ? { excludeSettled: true } : {}),
     ...(drill.uncategorized ? { uncategorized: true } : {}),
     ...(drill.unlinked ? { unlinked: true } : {}),
@@ -152,6 +169,9 @@ function TransactionsPage() {
   const [active, setActive] = useState<Transaction | null>(null);
   const [addOpen, setAddOpen] = useState(false);
 
+  // A link from a report can point at one transaction: open it once the list has loaded.
+  const [openedFromLink, setOpenedFromLink] = useState(false);
+
   const list = listTransactionsFn;
   const exportFn = exportTransactionsFn;
   const bulk = bulkCategorizeFn;
@@ -165,6 +185,14 @@ function TransactionsPage() {
     queryKey: ["transactions", effective],
     queryFn: () => list({ data: effective }),
   });
+  useEffect(() => {
+    if (!drill.tx || openedFromLink) return;
+    const row = query.data?.rows.find((r) => r.id === drill.tx);
+    if (row) {
+      setActive(row);
+      setOpenedFromLink(true);
+    }
+  }, [drill.tx, openedFromLink, query.data]);
   const categories = useQuery({
     queryKey: ["categories"],
     queryFn: () => cats({ data: undefined }),
@@ -380,6 +408,9 @@ function TransactionsPage() {
         unlinked: _l,
         gaapType: _g,
         reportable: _r,
+        transferUnmatched: _tu,
+        ghlInTransit: _gt,
+        booksUnassigned: _bu,
         ...rest
       } = f;
       return { ...rest, page: 1 };
@@ -395,6 +426,9 @@ function TransactionsPage() {
           filters.ledgerIds ||
           filters.accountIds ||
           filters.uncategorized ||
+          filters.transferUnmatched ||
+          filters.ghlInTransit ||
+          filters.booksUnassigned ||
           filters.unlinked) && (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/40 bg-accent px-4 py-2 text-sm">
             <span>
@@ -417,7 +451,7 @@ function TransactionsPage() {
                       ...((drill.rfrom ?? drill.from)
                         ? { from: (drill.rfrom ?? drill.from)! }
                         : {}),
-                      ...(drill.to ? { to: drill.to } : {}),
+                      ...((drill.rto ?? drill.to) ? { to: (drill.rto ?? drill.to)! } : {}),
                       tab: "accounting",
                       ...(drill.rsub ? { sub: drill.rsub } : {}),
                     }}

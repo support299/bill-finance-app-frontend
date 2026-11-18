@@ -25,7 +25,17 @@ export interface BsLine {
   label: string;
   balance: number;
   /** What `id` refers to: a ledger account, a bank account (Plaid id), the retained-earnings plug, or money collected through GoHighLevel. */
-  kind?: "ledger" | "bank" | "retained" | "sales_tax" | "ghl_clearing";
+  kind?:
+    | "ledger"
+    | "bank"
+    | "retained"
+    | "sales_tax"
+    | "ghl_clearing"
+    | "transfers_in_transit"
+    | "category"
+    | "receivable_rest"
+    | "payable_rest"
+    | "opening_balance";
 }
 interface AgingRow {
   id: string;
@@ -117,7 +127,14 @@ export interface AccountingReports {
     balanced: boolean;
   };
   internal_transfers: {
-    rows: { id: string; date: string; description: string; account: string; amount: number }[];
+    rows: {
+      id: string;
+      date: string;
+      description: string;
+      account: string;
+      account_id?: string | null;
+      amount: number;
+    }[];
     money_out: number;
     money_in: number;
     /** Money in less money out: zero when every transfer has both sides. */

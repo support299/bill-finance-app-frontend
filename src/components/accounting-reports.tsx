@@ -54,7 +54,7 @@ import {
 import { getProfileFn } from "@/api/app";
 import { listProjectsFn } from "@/api/projects";
 import { ACCOUNT_CLASS_LABELS, ACCOUNTING_STATUS_LABELS } from "@/api/ledgers";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { downloadCsv, formatCurrency, formatDate } from "@/lib/format";
 
 function Section({
   title,
@@ -256,6 +256,76 @@ function BsDrillLink({
         to="/transactions"
         search={{ account: row.id, to, label: row.label, rfrom: from, rsub: "bs" }}
         title={`View the transactions on “${row.label}”`}
+        className={DRILL_CLASS}
+      >
+        {children}
+        <DrillArrow />
+      </Link>
+    );
+  if (row.kind === "category")
+    return (
+      <Link
+        to="/transactions"
+        search={{ category: row.id, to, label: row.label, rfrom: from, rsub: "bs" }}
+        title={`View the transactions in “${row.label}”`}
+        className={DRILL_CLASS}
+      >
+        {children}
+        <DrillArrow />
+      </Link>
+    );
+  if (row.kind === "receivable_rest" || row.kind === "payable_rest")
+    return (
+      <Link
+        to="/transactions"
+        search={{
+          unassigned: row.kind === "receivable_rest" ? "receivable" : "payable",
+          to,
+          label: row.label,
+          rfrom: from,
+          rsub: "bs",
+        }}
+        title="View the entries not tied to a named customer or vendor"
+        className={DRILL_CLASS}
+      >
+        {children}
+        <DrillArrow />
+      </Link>
+    );
+  if (row.kind === "retained")
+    return (
+      <Link
+        to="/reports"
+        search={{ from, to, tab: "accounting", sub: "pl" }}
+        title="Retained earnings is the profit from the Profit Report: open it for these dates"
+        className={DRILL_CLASS}
+      >
+        {children}
+        <DrillArrow />
+      </Link>
+    );
+  if (row.kind === "opening_balance")
+    return (
+      <span title="The starting balance the books were opened with. No transactions sit behind it: it makes each bank account's opening balance match its bank.">
+        {children}
+      </span>
+    );
+  if (row.kind === "transfers_in_transit" || row.kind === "ghl_clearing")
+    return (
+      <Link
+        to="/transactions"
+        search={{
+          transit: row.kind === "ghl_clearing" ? "ghl" : "transfers",
+          to,
+          label: row.label,
+          rfrom: from,
+          rsub: "bs",
+        }}
+        title={
+          row.kind === "ghl_clearing"
+            ? "View the GoHighLevel payments not yet matched to a bank deposit"
+            : "View the transfers that have no matching other side"
+        }
         className={DRILL_CLASS}
       >
         {children}
@@ -1157,6 +1227,26 @@ export function AccountingReports({
           title="Internal Transfers"
           subtitle={`Money moved between your own accounts, ${formatDate(from)} – ${formatDate(to)}`}
         >
+          <div className="no-print mb-3 flex justify-end">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={d.internal_transfers.rows.length === 0}
+              onClick={() =>
+                downloadCsv(
+                  `internal-transfers-${from}-to-${to}.csv`,
+                  d.internal_transfers.rows.map((r) => ({
+                    date: r.date,
+                    account: r.account,
+                    description: r.description,
+                    amount: r.amount.toFixed(2),
+                  })),
+                )
+              }
+            >
+              <Download className="size-4" /> CSV
+            </Button>
+          </div>
           <div className="mb-4 grid gap-3 sm:grid-cols-3">
             <TotalRow label="Money out" value={d.internal_transfers.money_out} strong={false} />
             <TotalRow label="Money in" value={d.internal_transfers.money_in} strong={false} />
@@ -1187,7 +1277,29 @@ export function AccountingReports({
                 <TableRow key={r.id}>
                   <TableCell className="whitespace-nowrap">{formatDate(r.date)}</TableCell>
                   <TableCell className="whitespace-nowrap">{r.account}</TableCell>
-                  <TableCell className="max-w-72 truncate">{r.description}</TableCell>
+                  <TableCell className="max-w-72 truncate">
+                    {r.account_id ? (
+                      <Link
+                        to="/transactions"
+                        search={{
+                          from: r.date,
+                          to: r.date,
+                          account: r.account_id,
+                          tx: r.id,
+                          label: "Internal transfer",
+                          rfrom: from,
+                          rto: to,
+                          rsub: "transfers",
+                        }}
+                        title="Open this transaction"
+                        className={DRILL_CLASS}
+                      >
+                        {r.description}
+                      </Link>
+                    ) : (
+                      r.description
+                    )}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatCurrency(r.amount)}
                   </TableCell>
