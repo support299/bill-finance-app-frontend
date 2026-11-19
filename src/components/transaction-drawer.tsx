@@ -10,6 +10,7 @@ import { SplitPanel } from "@/components/split-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Editable } from "@/components/editable";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -82,9 +83,14 @@ export function TransactionDrawer({
             {transaction.merchant_logo_url && (
               <img src={transaction.merchant_logo_url} alt="" className="size-8 rounded" />
             )}
-            {transaction.merchant_name ?? transaction.description ?? "Transaction"}
+            {transaction.payee ||
+              (transaction.merchant_name ?? transaction.description ?? "Transaction")}
           </SheetTitle>
-          <SheetDescription>{transaction.description}</SheetDescription>
+          <SheetDescription>
+            {transaction.payee
+              ? (transaction.merchant_name ?? transaction.description)
+              : transaction.description}
+          </SheetDescription>
         </SheetHeader>
 
         <div className="space-y-5 px-4 pb-8">
@@ -148,6 +154,13 @@ export function TransactionDrawer({
               </p>
             }
           >
+            <PayeeField
+              key={transaction.id}
+              initial={transaction.payee ?? ""}
+              saving={updateMutation.isPending}
+              onSave={(payee) => updateMutation.mutate({ id: transaction.id, payee })}
+            />
+
             <div className="space-y-2">
               <p className="text-sm font-medium">Category</p>
               <Select
@@ -306,6 +319,49 @@ function Detail({ label, value }: { label: string; value: string }) {
     <div>
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="font-medium capitalize">{value}</dd>
+    </div>
+  );
+}
+
+/** Who the money went to or came from, typed in by hand (for example the name on a check). The bank sync never overwrites it. */
+function PayeeField({
+  initial,
+  saving,
+  onSave,
+}: {
+  initial: string;
+  saving: boolean;
+  onSave: (payee: string) => void;
+}) {
+  const [value, setValue] = useState(initial);
+  const [saved, setSaved] = useState(initial);
+  const changed = value.trim() !== saved.trim();
+  const save = () => {
+    if (!changed) return;
+    onSave(value.trim());
+    setSaved(value.trim());
+  };
+  return (
+    <div className="space-y-2">
+      <label htmlFor="payee" className="text-sm font-medium">
+        Payee
+      </label>
+      <div className="flex gap-2">
+        <Input
+          id="payee"
+          value={value}
+          maxLength={200}
+          placeholder="Who was paid, e.g. the name on a check"
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && save()}
+        />
+        <Button size="sm" variant="outline" disabled={!changed || saving} onClick={save}>
+          Save
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Shown in place of the bank's description. It stays when the bank syncs again.
+      </p>
     </div>
   );
 }

@@ -97,6 +97,7 @@ export const Route = createFileRoute("/_authenticated/transactions")({
       ...(typeof s.rto === "string" ? { rto: s.rto } : {}),
       ...(s.transit === "transfers" || s.transit === "ghl" ? { transit: s.transit } : {}),
       ...(typeof s.tx === "string" ? { tx: s.tx } : {}),
+      ...(typeof s.books === "string" ? { books: s.books } : {}),
       ...(s.unassigned === "receivable" || s.unassigned === "payable"
         ? { unassigned: s.unassigned }
         : {}),
@@ -129,6 +130,8 @@ export interface TransactionsSearch {
   transit?: "transfers" | "ghl";
   /** Receivable or payable rows not tied to a named customer or vendor. */
   unassigned?: "receivable" | "payable";
+  /** Everything posted to one built-in account of the books (e.g. "manual_cash"). */
+  books?: string;
   /** Open this transaction once the list has loaded. */
   tx?: string;
 }
@@ -150,6 +153,7 @@ function TransactionsPage() {
     ...(drill.transit === "transfers" ? { transferUnmatched: true } : {}),
     ...(drill.transit === "ghl" ? { ghlInTransit: true } : {}),
     ...(drill.unassigned ? { booksUnassigned: drill.unassigned } : {}),
+    ...(drill.books ? { booksAccount: drill.books } : {}),
     ...(drill.open ? { excludeSettled: true } : {}),
     ...(drill.uncategorized ? { uncategorized: true } : {}),
     ...(drill.unlinked ? { unlinked: true } : {}),
@@ -386,6 +390,7 @@ function TransactionsPage() {
       exportRows.map((r) => ({
         date: r.transaction_date,
         merchant: r.merchant_name ?? "",
+        payee: r.payee ?? "",
         description: r.description ?? "",
         account: r.plaid_account_id ?? "",
         amount: r.amount,
@@ -411,6 +416,7 @@ function TransactionsPage() {
         transferUnmatched: _tu,
         ghlInTransit: _gt,
         booksUnassigned: _bu,
+        booksAccount: _ba,
         ...rest
       } = f;
       return { ...rest, page: 1 };
@@ -429,6 +435,7 @@ function TransactionsPage() {
           filters.transferUnmatched ||
           filters.ghlInTransit ||
           filters.booksUnassigned ||
+          filters.booksAccount ||
           filters.unlinked) && (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/40 bg-accent px-4 py-2 text-sm">
             <span>
@@ -807,7 +814,15 @@ function TransactionsPage() {
                   {formatDate(t.transaction_date)}
                 </TableCell>
                 <TableCell className="max-w-40 truncate font-medium">
-                  {t.merchant_name ?? t.description ?? "—"}
+                  <span
+                    title={
+                      t.payee
+                        ? `Payee you entered. Bank description: ${t.merchant_name ?? t.description ?? "—"}`
+                        : undefined
+                    }
+                  >
+                    {t.payee || (t.merchant_name ?? t.description ?? "—")}
+                  </span>
                   {t.is_hidden && <EyeOff className="ml-1 inline size-3 text-muted-foreground" />}
                   {(t.split_count ?? 0) > 0 && (
                     <Scissors

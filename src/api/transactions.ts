@@ -33,6 +33,8 @@ export interface TransactionFilters {
   transferUnmatched?: boolean | undefined;
   /** Receivable or payable rows not tied to a named customer or vendor. */
   booksUnassigned?: "receivable" | "payable" | undefined;
+  /** Everything posted to one built-in account of the books (e.g. `manual_cash`, `uncategorized_equity`). */
+  booksAccount?: string | undefined;
   /** GoHighLevel payments, fees and refunds not yet matched to a bank deposit. */
   ghlInTransit?: boolean | undefined;
   /** Only rows the financial statements count (posted, not void). */
@@ -71,6 +73,7 @@ export function filterQuery(f: TransactionFilters = {}) {
     transfer_unmatched: f.transferUnmatched,
     ghl_in_transit: f.ghlInTransit,
     books_unassigned: f.booksUnassigned,
+    books_account: f.booksAccount,
     direction: f.direction,
     status: f.status,
     min_amount: f.minAmount,
@@ -104,6 +107,8 @@ export const updateTransactionFn = endpoint(
     classification?: GaapType;
     projectId?: string | null;
     projectRole?: "deposit" | "equipment" | "labor" | "other" | null;
+    /** Empty text clears it. */
+    payee?: string;
   }) => {
     await api.patch(`/transactions/${d.id}/`, {
       ...(d.categoryId !== undefined ? { category_id: d.categoryId } : {}),
@@ -111,6 +116,7 @@ export const updateTransactionFn = endpoint(
       ...(d.classification ? { classification: d.classification } : {}),
       ...(d.projectId !== undefined ? { project_id: d.projectId } : {}),
       ...(d.projectRole !== undefined ? { project_role: d.projectRole } : {}),
+      ...(d.payee !== undefined ? { payee: d.payee } : {}),
     });
     return { ok: true };
   },
@@ -194,6 +200,30 @@ export const recategorizeAllFn = endpoint(async (_: void) =>
 /** Marks two picked transactions (one out, one in, different accounts) as one transfer. */
 export const linkTransferFn = endpoint(async (d: { ids: [string, string] }) =>
   api.post<{ updated: number }>("/transactions/link-transfer/", { ids: d.ids }),
+);
+
+/** One transfer whose other side is missing, with the most likely other side when the app can find one. */
+export interface UnmatchedTransfer {
+  id: string;
+  date: string;
+  description: string;
+  amount: number;
+  suggestion: {
+    id: string;
+    date: string;
+    description: string;
+    account: string;
+    category: string | null;
+  } | null;
+}
+export interface UnmatchedTransferGroup {
+  account_id: string | null;
+  account: string;
+  total: number;
+  rows: UnmatchedTransfer[];
+}
+export const listUnmatchedTransfersFn = endpoint(async (_: void) =>
+  api.get<{ accounts: UnmatchedTransferGroup[] }>("/transactions/unmatched-transfers/"),
 );
 
 export const detectTransfersFn = endpoint(async (_: void) =>

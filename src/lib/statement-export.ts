@@ -320,19 +320,7 @@ export async function downloadStatementPdf(
   ]);
   const doc = new jsPDF({ unit: "pt", format: "letter" });
   const w = doc.internal.pageSize.getWidth();
-  if (logo) doc.addImage(logo, "PNG", 40, 28, 44, 44);
-  doc.setTextColor(...NAVY);
-  doc
-    .setFont("helvetica", "bold")
-    .setFontSize(18)
-    .text(businessName || BRAND_NAME, logo ? 94 : 40, 54);
-  doc.setFontSize(15).text(m.title, w / 2, 100, { align: "center" });
-  doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(100);
-  doc.text(m.subtitle, w / 2, 117, { align: "center" });
-  doc
-    .setDrawColor(...ORANGE)
-    .setLineWidth(2)
-    .line(40, 78, w - 40, 78);
+  drawHeader(doc, m.title, m.subtitle, businessName, logo);
 
   const cmp = Boolean(m.compareLabel);
   const money = { halign: "right" as const };
@@ -398,4 +386,88 @@ export async function downloadStatementPdf(
     },
   });
   doc.save(`${m.slug}-${from}-to-${to}${cmp ? "-compare" : ""}.pdf`);
+}
+
+type PdfDoc = InstanceType<typeof import("jspdf").jsPDF>;
+
+function drawHeader(
+  doc: PdfDoc,
+  title: string,
+  subtitle: string,
+  businessName: string | undefined,
+  logo: string | null,
+) {
+  const w = doc.internal.pageSize.getWidth();
+  if (logo) doc.addImage(logo, "PNG", 40, 28, 44, 44);
+  doc.setTextColor(...NAVY);
+  doc
+    .setFont("helvetica", "bold")
+    .setFontSize(18)
+    .text(businessName || BRAND_NAME, logo ? 94 : 40, 54);
+  doc.setFontSize(15).text(title, w / 2, 100, { align: "center" });
+  doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(100);
+  doc.text(subtitle, w / 2, 117, { align: "center" });
+  doc
+    .setDrawColor(...ORANGE)
+    .setLineWidth(2)
+    .line(40, 78, w - 40, 78);
+}
+
+/** A plain table report (Transaction Review, Sales Tax, aging, transfers): a header row, body rows and an optional totals row. */
+export interface TableModel {
+  title: string;
+  subtitle: string;
+  slug: string;
+  head: string[];
+  /** Columns that hold money or numbers are right-aligned. */
+  right: number[];
+  rows: string[][];
+  total?: string[];
+}
+
+export function downloadTableCsv(m: TableModel, from: string, to: string) {
+  const all = m.total ? [...m.rows, m.total] : m.rows;
+  downloadCsv(
+    `${m.slug}-${from}-to-${to}.csv`,
+    all.map((r) => Object.fromEntries(m.head.map((h, i) => [h, r[i] ?? ""]))),
+  );
+}
+
+export async function downloadTablePdf(
+  m: TableModel,
+  from: string,
+  to: string,
+  businessName?: string,
+) {
+  const [{ jsPDF }, { default: autoTable }, logo] = await Promise.all([
+    import("jspdf"),
+    import("jspdf-autotable"),
+    logoDataUrl(),
+  ]);
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const w = doc.internal.pageSize.getWidth();
+  drawHeader(doc, m.title, m.subtitle, businessName, logo);
+  autoTable(doc, {
+    startY: 135,
+    head: [m.head],
+    body: m.rows,
+    ...(m.total ? { foot: [m.total] } : {}),
+    showFoot: "lastPage",
+    theme: "striped",
+    headStyles: { fillColor: NAVY, textColor: [255, 255, 255] },
+    footStyles: { fillColor: [253, 238, 221], textColor: NAVY, fontStyle: "bold" },
+    styles: { fontSize: 9, textColor: NAVY, cellPadding: 4 },
+    columnStyles: Object.fromEntries(m.right.map((i) => [i, { halign: "right" as const }])),
+    didParseCell: (h) => {
+      if (m.right.includes(h.column.index) && h.section !== "body") h.cell.styles.halign = "right";
+    },
+    margin: { left: 40, right: 40 },
+    didDrawPage: () => {
+      const ph = doc.internal.pageSize.getHeight();
+      doc.setFontSize(8).setTextColor(130);
+      doc.text(`Generated ${new Date().toLocaleDateString()}`, 40, ph - 24);
+      doc.text(`Page ${doc.getNumberOfPages()}`, w - 40, ph - 24, { align: "right" });
+    },
+  });
+  doc.save(`${m.slug}-${from}-to-${to}.pdf`);
 }

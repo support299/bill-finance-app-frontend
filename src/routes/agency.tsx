@@ -153,8 +153,8 @@ function Clients({ onOpened }: { onOpened: () => void }) {
       <div>
         <h1 className="text-2xl font-bold">Your clients</h1>
         <p className="text-sm text-muted-foreground">
-          Every sub-account that installed iMax Profit Tracker. Opening one is read-only and is
-          recorded.
+          Every sub-account that installed iMax Profit Tracker. Opening one is recorded in the
+          activity log.
         </p>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">

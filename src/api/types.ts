@@ -41,6 +41,8 @@ export interface Transaction {
   plaid_account_id: string | null;
   plaid_transaction_id: string | null;
   merchant_name: string | null;
+  /** Who the money went to or came from, typed in by the user. Shown in place of the bank's merchant name. */
+  payee?: string | null;
   original_description: string | null;
   description: string | null;
   amount: string | number;

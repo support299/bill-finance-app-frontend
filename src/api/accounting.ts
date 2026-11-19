@@ -35,7 +35,8 @@ export interface BsLine {
     | "category"
     | "receivable_rest"
     | "payable_rest"
-    | "opening_balance";
+    | "opening_balance"
+    | "books_account";
 }
 interface AgingRow {
   id: string;
@@ -220,6 +221,32 @@ export interface ChartAccount {
 
 export const getBooksEntryFn = endpoint(async (d: { transactionId: string }) =>
   api.get<BooksEntry>(`/transactions/${d.transactionId}/entry/`),
+);
+/** A bank account's opening balance. Amounts are in the account's own terms (a card: the amount owed). */
+export interface OpeningBalance {
+  plaid_account_id: string;
+  account: string;
+  /** The opening balance in the books now (null when there is none). */
+  current: number | null;
+  current_date: string | null;
+  /** Typed in by the user: the app no longer recalculates it. */
+  manual: boolean;
+  bank_balance?: number;
+  from_transactions: number;
+  /** What the app works out from the bank's balance. */
+  opening?: number;
+  date: string;
+  skipped?: string;
+}
+export const getOpeningBalancesFn = endpoint(async (_: void) =>
+  api.get<{ accounts: OpeningBalance[] }>("/opening-balances/"),
+);
+export const setOpeningBalanceFn = endpoint(
+  async (d: { plaidAccountId: string; amount?: string; date?: string; reset?: boolean }) =>
+    api.post<{ accounts: OpeningBalance[] }>("/opening-balances/", {
+      plaid_account_id: d.plaidAccountId,
+      ...(d.reset ? { reset: true } : { amount: d.amount, ...(d.date ? { date: d.date } : {}) }),
+    }),
 );
 export const getChartOfAccountsFn = endpoint(async (_: void) =>
   api.get<{ accounts: ChartAccount[] }>("/chart-of-accounts/"),

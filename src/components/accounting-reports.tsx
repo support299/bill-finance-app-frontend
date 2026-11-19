@@ -26,14 +26,19 @@ import {
   changeOf,
   downloadStatementCsv,
   downloadStatementPdf,
+  downloadTableCsv,
+  downloadTablePdf,
   priorRange,
   type CompareMode,
   type StatementKind,
   type StatementModel,
+  type TableModel,
 } from "@/lib/statement-export";
 
 import { Badge } from "@/components/ui/badge";
 import { ChartOfAccounts } from "@/components/chart-of-accounts";
+import { OpeningBalancesDialog } from "@/components/opening-balances-dialog";
+import { UnmatchedTransfers } from "@/components/unmatched-transfers";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -54,7 +59,7 @@ import {
 import { getProfileFn } from "@/api/app";
 import { listProjectsFn } from "@/api/projects";
 import { ACCOUNT_CLASS_LABELS, ACCOUNTING_STATUS_LABELS } from "@/api/ledgers";
-import { downloadCsv, formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 
 function Section({
   title,
@@ -226,6 +231,25 @@ function LineList({ rows, drill }: { rows: LineRow[]; drill?: Drill | undefined 
   );
 }
 
+/** "Opening balance equity" has no transactions behind it: it opens the list of each account's opening balance instead. */
+function OpeningBalanceLink({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title="View each account's opening balance"
+        className={DRILL_CLASS}
+      >
+        {children}
+        <DrillArrow />
+      </button>
+      <OpeningBalancesDialog open={open} onOpenChange={setOpen} />
+    </>
+  );
+}
+
 /** Where a balance-sheet line leads: the transactions behind its balance. */
 function BsDrillLink({
   row,
@@ -304,12 +328,19 @@ function BsDrillLink({
         <DrillArrow />
       </Link>
     );
-  if (row.kind === "opening_balance")
+  if (row.kind === "books_account")
     return (
-      <span title="The starting balance the books were opened with. No transactions sit behind it: it makes each bank account's opening balance match its bank.">
+      <Link
+        to="/transactions"
+        search={{ books: row.id, to, label: row.label, rfrom: from, rsub: "bs" }}
+        title={`View the transactions recorded in “${row.label}”`}
+        className={DRILL_CLASS}
+      >
         {children}
-      </span>
+        <DrillArrow />
+      </Link>
     );
+  if (row.kind === "opening_balance") return <OpeningBalanceLink>{children}</OpeningBalanceLink>;
   if (row.kind === "transfers_in_transit" || row.kind === "ghl_clearing")
     return (
       <Link
@@ -743,6 +774,94 @@ function ComparisonStatement({
   );
 }
 
+const money = (v: number) => formatCurrency(v);
+
+/** The rows behind the plain table reports, so the same figures can be downloaded as PDF or CSV. */
+function tableModelFor(
+  tab: string,
+  d: AccountingData,
+  from: string,
+  to: string,
+): TableModel | null {
+  const range = `${formatDate(from)} – ${formatDate(to)}`;
+  if (tab === "tb") {
+    const t = d.trial_balance;
+    return {
+      title: "Transaction Review",
+      subtitle: `As of ${formatDate(to)}`,
+      slug: "transaction-review",
+      head: ["Account", "Class", "Debit", "Credit"],
+      right: [2, 3],
+      rows: t.rows.map((r) => [
+        r.label,
+        ACCOUNT_CLASS_LABELS[r.account_class] ?? "Other",
+        money(r.debit),
+        money(r.credit),
+      ]),
+      total: ["Total", "", money(t.total_debit), money(t.total_credit)],
+    };
+  }
+  if (tab === "tax") {
+    const t = d.sales_tax;
+    return {
+      title: "Sales Tax",
+      subtitle: `Collected and paid ${range}. Payable at ${formatDate(to)}: ${money(t.balance_due)}`,
+      slug: "sales-tax",
+      head: ["Date", "Description", "Tax", "Collected", "Paid"],
+      right: [3, 4],
+      rows: t.rows.map((r) => [
+        formatDate(r.date),
+        r.description,
+        r.tax_name,
+        r.collected ? money(r.collected) : "—",
+        r.remitted ? money(r.remitted) : "—",
+      ]),
+      total: ["Total", "", "", money(t.collected), money(t.remitted)],
+    };
+  }
+  if (tab === "transfers") {
+    const t = d.internal_transfers;
+    return {
+      title: "Internal Transfers",
+      subtitle: `Money moved between your own accounts, ${range}. Difference: ${money(t.difference)}`,
+      slug: "internal-transfers",
+      head: ["Date", "Account", "Description", "Amount"],
+      right: [3],
+      rows: t.rows.map((r) => [formatDate(r.date), r.account, r.description, money(r.amount)]),
+      total: [
+        "Money out / in",
+        "",
+        `${money(t.money_out)} out, ${money(t.money_in)} in`,
+        money(t.difference),
+      ],
+    };
+  }
+  if (tab === "ar" || tab === "ap") {
+    const a = tab === "ar" ? d.ar_aging : d.ap_aging;
+    const buckets = ["0-30", "31-60", "61-90", "90+"];
+    return {
+      title: tab === "ar" ? "A/R aging" : "A/P aging",
+      subtitle: `As of ${formatDate(to)}`,
+      slug: tab === "ar" ? "ar-aging" : "ap-aging",
+      head: ["Account", "Contact", "0–30", "31–60", "61–90", "90+", "Total"],
+      right: [2, 3, 4, 5, 6],
+      rows: a.rows.map((r) => [
+        r.label,
+        r.contact ?? "—",
+        ...buckets.map((b) => money(r.buckets[b] ?? 0)),
+        money(r.total),
+      ]),
+      total: [
+        "Total",
+        "",
+        ...buckets.map((b) => money(a.totals.buckets[b] ?? 0)),
+        money(a.totals.total),
+      ],
+    };
+  }
+  return null;
+}
+
 export function AccountingReports({
   from,
   to,
@@ -812,6 +931,8 @@ export function AccountingReports({
     ? (tab as StatementKind)
     : null;
 
+  const tableModel = d ? tableModelFor(tab, d, from, to) : null;
+
   if (query.isLoading) return <p className="text-sm text-muted-foreground">Building reports…</p>;
   if (!d) return <p className="text-sm text-muted-foreground">No data for this period yet.</p>;
 
@@ -831,6 +952,20 @@ export function AccountingReports({
           <TabsTrigger value="detail">By account</TabsTrigger>
           <TabsTrigger value="chart">Chart of accounts</TabsTrigger>
         </TabsList>
+        {tableModel && (
+          <div className="no-print flex flex-wrap items-center gap-2">
+            <Button size="sm" onClick={() => downloadTablePdf(tableModel, from, to, businessName)}>
+              <FileText className="size-4" /> Download PDF
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => downloadTableCsv(tableModel, from, to)}
+            >
+              <Download className="size-4" /> CSV
+            </Button>
+          </div>
+        )}
         {exportKind && (
           <div className="no-print flex flex-wrap items-center gap-2">
             {tab === "pl" && (projects.data?.projects.length ?? 0) > 0 && (
@@ -1227,26 +1362,6 @@ export function AccountingReports({
           title="Internal Transfers"
           subtitle={`Money moved between your own accounts, ${formatDate(from)} – ${formatDate(to)}`}
         >
-          <div className="no-print mb-3 flex justify-end">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={d.internal_transfers.rows.length === 0}
-              onClick={() =>
-                downloadCsv(
-                  `internal-transfers-${from}-to-${to}.csv`,
-                  d.internal_transfers.rows.map((r) => ({
-                    date: r.date,
-                    account: r.account,
-                    description: r.description,
-                    amount: r.amount.toFixed(2),
-                  })),
-                )
-              }
-            >
-              <Download className="size-4" /> CSV
-            </Button>
-          </div>
           <div className="mb-4 grid gap-3 sm:grid-cols-3">
             <TotalRow label="Money out" value={d.internal_transfers.money_out} strong={false} />
             <TotalRow label="Money in" value={d.internal_transfers.money_in} strong={false} />
@@ -1307,6 +1422,7 @@ export function AccountingReports({
               ))}
             </TableBody>
           </Table>
+          <UnmatchedTransfers from={from} to={to} />
         </Statement>
       </TabsContent>
 
